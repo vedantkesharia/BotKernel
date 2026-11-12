@@ -1,0 +1,201 @@
+x-app: &app
+  build: .
+  environment: &env
+    DATABASE_URL: postgresql+psycopg://botkernel:local@postgres/botkernel
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    REDIS_URL: redis://redis:6379
+    METRICS_ENABLED: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${BOTKERNEL_OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    OTEL_SERVICE_NAME: botkernel-api
+    BOTKERNEL_TRACE_SAMPLE_RATIO: ${BOTKERNEL_TRACE_SAMPLE_RATIO:-1.0}
+    CLOUD_MODE: mock
+    AWS_DEPLOY_ALLOWED: "false"
+    BEDROCK_ENABLED: ${BEDROCK_ENABLED:-false}
+    BEDROCK_SPEND_AUTHORIZED: ${BEDROCK_SPEND_AUTHORIZED:-false}
+    BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+    BEDROCK_REGION: ${BEDROCK_REGION:-}
+    BEDROCK_PROFILE: ${BEDROCK_PROFILE:-}
+    BEDROCK_MAX_OUTPUT_TOKENS: ${BEDROCK_MAX_OUTPUT_TOKENS:-512}
+    BEDROCK_MAX_CALLS_PER_RUN: ${BEDROCK_MAX_CALLS_PER_RUN:-1}
+    BEDROCK_MAX_CALLS_PER_DAY: ${BEDROCK_MAX_CALLS_PER_DAY:-10}
+    BEDROCK_REQUEST_TIMEOUT_SECONDS: ${BEDROCK_REQUEST_TIMEOUT_SECONDS:-10}
+    AGENT_PROVIDER: ${AGENT_PROVIDER:-deterministic_mock}
+    BOTKERNEL_AGENT_RESOURCE: ${BOTKERNEL_AGENT_RESOURCE:-service-a}
+    INVESTIGATOR_PROVIDER: ${INVESTIGATOR_PROVIDER:-deterministic_mock}
+    AI_ACTION_EXECUTION_ENABLED: ${AI_ACTION_EXECUTION_ENABLED:-false}
+  depends_on:
+    init:
+      condition: service_completed_successfully
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: botkernel
+      POSTGRES_PASSWORD: local
+      POSTGRES_DB: botkernel
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botkernel"]
+      interval: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+  kafka-volume-init:
+    image: apache/kafka:3.9.0
+    user: "0:0"
+    entrypoint: ["chown", "1000:1000", "/data"]
+    volumes: ["kafkadata:/data"]
+  kafka:
+    depends_on:
+      kafka-volume-init:
+        condition: service_completed_successfully
+    volumes: ["kafkadata:/tmp/kraft-combined-logs"]
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+  init:
+    build: .
+    environment: *env
+    command: ["python", "-c", "from botkernel.core import initialize; initialize()"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *app
+    ports: ["127.0.0.1:${BOTKERNEL_API_PORT:-8000}:8000"]
+    volumes:
+      - ./benchmarks/results:/app/benchmarks/results
+  publisher:
+    <<: *app
+    environment:
+      <<: *env
+      ROLE: publisher
+      OTEL_SERVICE_NAME: botkernel-publisher
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure
+  worker:
+    <<: *app
+    environment:
+      <<: *env
+      ROLE: worker
+      OTEL_SERVICE_NAME: botkernel-worker
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure
+  recovery:
+    <<: *app
+    environment:
+      <<: *env
+      ROLE: recovery
+      OTEL_SERVICE_NAME: botkernel-recovery
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure
+  controller:
+    <<: *app
+    profiles: [stability]
+    environment:
+      <<: *env
+      ROLE: controller
+      OTEL_SERVICE_NAME: botkernel-controller
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure
+  langgraph-cost:
+    <<: *app
+    profiles: [langgraph]
+    environment:
+      <<: *env
+      AGENT_ROLE: cost
+      AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      AGENT_PROVIDER: ${AGENT_PROVIDER:-deterministic_mock}
+      BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/cost.sqlite
+    volumes: ["langgraphdata:/var/lib/botkernel/checkpoints"]
+    command: ["python", "-m", "botkernel.lang_agents"]
+    restart: on-failure
+  langgraph-performance:
+    <<: *app
+    profiles: [langgraph]
+    environment:
+      <<: *env
+      AGENT_ROLE: performance
+      AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      AGENT_PROVIDER: ${AGENT_PROVIDER:-deterministic_mock}
+      BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/performance.sqlite
+    volumes: ["langgraphdata:/var/lib/botkernel/checkpoints"]
+    command: ["python", "-m", "botkernel.lang_agents"]
+    restart: on-failure
+  cost:
+    <<: *app
+    profiles: [demo]
+    environment:
+      <<: *env
+      AGENT_NAME: cost
+    command: ["python", "-m", "botkernel.agent"]
+    restart: on-failure
+  performance:
+    <<: *app
+    profiles: [demo]
+    environment:
+      <<: *env
+      AGENT_NAME: performance
+    command: ["python", "-m", "botkernel.agent"]
+    restart: on-failure
+  live-demo:
+    <<: *app
+    profiles: [demo]
+    environment:
+      <<: *env
+      DEMO_TIMEOUT_SECONDS: ${DEMO_TIMEOUT_SECONDS:-180}
+    command: ["python", "-m", "botkernel.live_demo"]
+  tests:
+    <<: *app
+    profiles: [test]
+    environment:
+      <<: *env
+      BOTKERNEL_TEST_ISOLATED: "true"
+    command: ["pytest", "-q"]
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    profiles: [observability]
+    ports: ["127.0.0.1:${BOTKERNEL_PROMETHEUS_PORT:-19090}:9090"]
+    volumes: ["./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: [observability]
+    ports: ["127.0.0.1:${BOTKERNEL_GRAFANA_PORT:-13000}:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    profiles: [observability]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes: ["./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro"]
+    depends_on:
+      jaeger:
+        condition: service_started
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.23.0
+    profiles: [observability]
+    ports: ["127.0.0.1:${BOTKERNEL_JAEGER_PORT:-16686}:16686"]
+volumes:
+  pgdata:
+  kafkadata:
+  langgraphdata:

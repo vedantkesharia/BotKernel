@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: BotKernel
+    folder: Local simulation
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

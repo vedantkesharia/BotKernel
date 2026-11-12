@@ -1,0 +1,412 @@
+﻿name: botkernel-aws-demo
+
+x-log-options: &aws-log-options
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION:-us-east-2}
+    awslogs-group: ${BOTKERNEL_LOG_GROUP:-/botkernel/demo}
+    awslogs-create-group: "false"
+    # Docker Engine defaults to a unique container-ID CloudWatch stream.
+    mode: non-blocking
+    max-buffer-size: 4m
+
+x-app-environment: &app-environment
+  DATABASE_URL_FILE: /run/secrets/database_url
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_URL: redis://redis:6379
+  METRICS_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${BOTKERNEL_OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_SERVICE_NAME: botkernel
+  BOTKERNEL_TRACE_SAMPLE_RATIO: ${BOTKERNEL_TRACE_SAMPLE_RATIO:-0.1}
+  BOTKERNEL_RUNTIME_ENV: ${BOTKERNEL_RUNTIME_ENV:-aws-demo}
+  CLOUD_MODE: mock
+  AWS_DEPLOY_ALLOWED: "false"
+  AWS_REGION: ${AWS_REGION:-us-east-2}
+  BEDROCK_REGION: ${BEDROCK_REGION:-}
+  BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+  BEDROCK_ENABLED: ${BEDROCK_ENABLED:-false}
+  BEDROCK_SPEND_AUTHORIZED: ${BEDROCK_SPEND_AUTHORIZED:-false}
+  BEDROCK_MAX_OUTPUT_TOKENS: ${BEDROCK_MAX_OUTPUT_TOKENS:-512}
+  MAX_BEDROCK_TOKENS_PER_DAY: ${MAX_BEDROCK_TOKENS_PER_DAY:-20000}
+  BEDROCK_MAX_CALLS_PER_RUN: ${BEDROCK_MAX_CALLS_PER_RUN:-1}
+  BEDROCK_MAX_CALLS_PER_DAY: ${BEDROCK_MAX_CALLS_PER_DAY:-10}
+  BEDROCK_REQUEST_TIMEOUT_SECONDS: ${BEDROCK_REQUEST_TIMEOUT_SECONDS:-10}
+  AGENT_PROVIDER: ${AGENT_PROVIDER:-deterministic_mock}
+  BOTKERNEL_AGENT_RESOURCE: ${BOTKERNEL_AGENT_RESOURCE:-service-a}
+  INVESTIGATOR_PROVIDER: ${INVESTIGATOR_PROVIDER:-deterministic_mock}
+  AI_ACTION_EXECUTION_ENABLED: ${AI_ACTION_EXECUTION_ENABLED:-false}
+
+x-python-runtime: &python-runtime
+  image: ${BOTKERNEL_API_IMAGE:-botkernel-api:local}
+  environment: *app-environment
+  secrets: [database_url]
+  networks: [backend]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  init: true
+  logging: *aws-log-options
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: botkernel
+      POSTGRES_DB: botkernel
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botkernel -d botkernel"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: on-failure:5
+    stop_grace_period: 60s
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 768M
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes: [redis_data:/data]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: on-failure:5
+    stop_grace_period: 20s
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+
+  kafka-volume-init:
+    image: apache/kafka:3.9.0
+    user: "0:0"
+    entrypoint: ["chown", "1000:1000", "/data"]
+    volumes: [kafka_data:/data]
+    networks: [backend]
+    restart: "no"
+    logging: *aws-log-options
+
+  kafka:
+    image: apache/kafka:3.9.0
+    depends_on:
+      kafka-volume-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_RETENTION_BYTES: 1073741824
+      KAFKA_HEAP_OPTS: "-Xms1g -Xmx1g"
+    volumes: [kafka_data:/tmp/kraft-combined-logs]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 8s
+      retries: 12
+      start_period: 45s
+    restart: on-failure:5
+    stop_grace_period: 60s
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 1536M
+
+  init:
+    <<: *python-runtime
+    command: ["python", "-c", "from botkernel.core import initialize; initialize()"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 256M
+
+  api:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      OTEL_SERVICE_NAME: botkernel-api
+    networks: [backend, egress]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/ready', timeout=5).read()"]
+      interval: 15s
+      timeout: 7s
+      retries: 8
+      start_period: 45s
+    volumes: [benchmark_data:/app/benchmarks/results]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 768M
+
+  publisher:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      ROLE: publisher
+      OTEL_SERVICE_NAME: botkernel-publisher
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+
+  worker:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      ROLE: worker
+      OTEL_SERVICE_NAME: botkernel-worker
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 256M
+
+  recovery:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      ROLE: recovery
+      OTEL_SERVICE_NAME: botkernel-recovery
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+
+  controller:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      ROLE: controller
+      OTEL_SERVICE_NAME: botkernel-controller
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.worker"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 256M
+
+  langgraph-cost:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      AGENT_ROLE: cost
+      AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/cost.sqlite
+      OTEL_SERVICE_NAME: botkernel-cost-agent
+    networks: [backend, egress]
+    volumes: [agent_checkpoints:/var/lib/botkernel/checkpoints]
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.lang_agents"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 384M
+
+  langgraph-performance:
+    <<: *python-runtime
+    environment:
+      <<: *app-environment
+      AGENT_ROLE: performance
+      AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/performance.sqlite
+      OTEL_SERVICE_NAME: botkernel-performance-agent
+    networks: [backend, egress]
+    volumes: [agent_checkpoints:/var/lib/botkernel/checkpoints]
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "botkernel.lang_agents"]
+    restart: on-failure:5
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 384M
+
+  dashboard:
+    image: ${BOTKERNEL_DASHBOARD_IMAGE:-botkernel-dashboard:local}
+    ports: ["127.0.0.1:${BOTKERNEL_DASHBOARD_PORT:-8080}:8080"]
+    networks: [backend]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: on-failure:5
+    stop_grace_period: 15s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Nginx's unprivileged worker startup needs these three capabilities.
+    # All other Linux capabilities remain dropped.
+    cap_add: [CHOWN, SETGID, SETUID]
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    profiles: [observability]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports: ["127.0.0.1:${BOTKERNEL_PROMETHEUS_PORT:-19090}:9090"]
+    networks: [backend]
+    restart: on-failure:5
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    volumes:
+      - ./observability/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports: ["127.0.0.1:${BOTKERNEL_GRAFANA_PORT:-13000}:3000"]
+    networks: [backend]
+    restart: on-failure:5
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.23.0
+    profiles: [observability]
+    ports: ["127.0.0.1:${BOTKERNEL_JAEGER_PORT:-16686}:16686"]
+    networks: [backend]
+    restart: on-failure:5
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    profiles: [observability]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes: ["./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro"]
+    networks: [backend]
+    depends_on:
+      jaeger:
+        condition: service_started
+    restart: on-failure:5
+    logging: *aws-log-options
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
+
+networks:
+  backend:
+    internal: true
+  egress: {}
+
+secrets:
+  database_url:
+    file: ${BOTKERNEL_DATABASE_URL_FILE:-/etc/botkernel/secrets/database_url}
+  postgres_password:
+    file: ${BOTKERNEL_POSTGRES_PASSWORD_FILE:-/etc/botkernel/secrets/postgres_password}
+
+volumes:
+  postgres_data:
+  kafka_data:
+  redis_data:
+  agent_checkpoints:
+  benchmark_data:
+  prometheus_data:
+  grafana_data:

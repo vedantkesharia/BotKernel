@@ -1,0 +1,118 @@
+{
+  "uid": "botkernel-collective",
+  "title": "BotKernel - Collective Reliability (local simulation)",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Controller evaluations / second",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(botkernel_operations_total{operation=\"controller\"}[1m])"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Controller p95 seconds",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"controller\"}[1m])))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Incidents by current state",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "botkernel_incidents"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Interventions (durable sum)",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "botkernel_interventions"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Recurrences (durable sum)",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "botkernel_recurrences"
+        }
+      ]
+    }
+  ]
+}

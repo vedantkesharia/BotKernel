@@ -1,0 +1,27 @@
+{
+  "run_id": "08dc5256-6d01-44f8-b4b5-c6600db277c9",
+  "action_id": "d626beb7-aad3-4209-8fd5-83079d97a7ea",
+  "crash_exit_code": 17,
+  "before_recovery": {
+    "state": "DISPATCHED",
+    "published": true,
+    "version": 0,
+    "receipts": 1,
+    "effects": 0
+  },
+  "after_recovery": {
+    "state": "SUCCEEDED",
+    "published": true,
+    "version": 1,
+    "receipts": 1,
+    "effects": 1
+  },
+  "completion_seconds_after_observed_crash": 6.474,
+  "explicit_duplicate_messages_acknowledged": 1,
+  "recovery_worker_handled_log_entries": 2,
+  "notes": [
+    "The original consumer exits after committing the simulator receipt and before ledger finalization.",
+    "A second Kafka message is deliberately published after the crash.",
+    "Timing uses the benchmark process monotonic clock and includes duplicate injection and consumer startup."
+  ]
+}

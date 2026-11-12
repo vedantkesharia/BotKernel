@@ -1,0 +1,6 @@
+# Simulator recovery
+Migration 0002 adds bounded attempts and due times. The recovery process scans due actions, delaying newly reserved actions 30 seconds. It uses the same per-action session advisory lock as Kafka executors, held across effect and ledger transactions. Worker death releases the lock. Receipt inspection precedes retry-limit/deadline checks; a committed effect is finalized instead of repeated. No receipt plus expired deadline/exhausted attempts yields FAILED. Divergent or missing external state yields ESCALATED and retains reservation/quota. Backoff doubles from the configured base and caps at 300 seconds.
+
+Malformed/unknown Kafka action IDs are recorded in dead_letters before committing their offsets. Publisher crash after acknowledgement retains the outbox row and can duplicate publication. Fault switches CRASH_AFTER_EFFECT and CRASH_AFTER_PUBLISH are test-only; disable them for recovery. SIMULATOR_FAILURE=permanent injects known rolled-back effects.
+
+These guarantees depend on the simulator atomic receipt contract. No arbitrary external exactly-once claim. Escalation resolution, full dead-letter tests, API failure tests and legacy schema drift checks remain incomplete. Unexpected infrastructure errors retain reservations and rely on process restart. See PROJECT_HANDOFF.md for executed tests.

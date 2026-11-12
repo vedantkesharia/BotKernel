@@ -1,0 +1,10 @@
+region                    = "us-east-2"
+aws_account_id            = "000000000000" # Replace only in a local ignored tfvars file.
+environment               = "demo"
+ami_id                    = "ami-00000000000000000" # Replace with a reviewed AL2023 x86_64 AMI in region.
+instance_type             = "m7i-flex.large"
+root_volume_size_gib      = 100
+enable_ssm                = true
+enable_bedrock_invoke     = false
+bedrock_model_arns        = []
+log_retention_days        = 30

@@ -1,0 +1,8 @@
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${BEDROCK_ACCEPTANCE_PG_PORT:-15432}:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:${BEDROCK_ACCEPTANCE_REDIS_PORT:-16379}:6379"

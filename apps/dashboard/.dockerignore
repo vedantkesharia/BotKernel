@@ -1,0 +1,15 @@
+node_modules/
+dist/
+visual-review/
+playwright-report/
+test-results/
+blob-report/
+.env
+.env.*
+.aws/
+secrets/
+**/credentials
+**/credentials.*
+**/aws-credentials*
+*.pem
+*.key
