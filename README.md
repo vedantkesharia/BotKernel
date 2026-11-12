@@ -10,18 +10,88 @@ BotKernel is a distributed AgentOps platform for detecting and containing harmfu
 
 ```mermaid
 flowchart TB
-  A["LangGraph Agents<br/>Cost + Performance"]
-  B["FastAPI Gateway<br/>PostgreSQL Transactional Outbox"]
-  C["Kafka + Execution Workers<br/>Durable Simulator Effects"]
-  D["Committed-Effect Graph<br/>Deterministic Stability Controller"]
-  E["Evidence-Grounded<br/>LangGraph Investigator"]
-  F["React Operations Dashboard"]
-  A --> B --> C --> D
-  D -. "on-demand evidence" .-> E
-  E -. "reports via API" .-> F
+  classDef service fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.2px;
+  classDef datastore fill:#eff6ff,stroke:#64748b,color:#0f172a,stroke-width:1.2px;
+  classDef control fill:#f5f3ff,stroke:#8b7cc8,color:#1e1b4b,stroke-width:1.2px;
+  classDef optional fill:#f9fafb,stroke:#9ca3af,color:#374151,stroke-dasharray:4 4;
+  classDef ui fill:#f0fdfa,stroke:#5f9e96,color:#134e4a,stroke-width:1.2px;
+  classDef infra fill:#fff7ed,stroke:#c49a78,color:#431407,stroke-width:1.2px;
+
+  subgraph L1["Agent Reasoning Layer"]
+    direction TB
+    TEL["Simulator Telemetry"]:::service
+    BED["Bedrock<br/>(optional)"]:::optional
+    REDIS["Redis<br/>(advisory)"]:::optional
+    subgraph AGENTS["LangGraph Agents"]
+      direction TB
+      COST["Cost Agent"]:::service
+      PERF["Performance Agent"]:::service
+      COST ~~~ PERF
+    end
+    TEL ~~~ BED ~~~ REDIS
+    TEL --> AGENTS
+    BED -. optional .-> AGENTS
+    REDIS -. advisory .-> AGENTS
+  end
+
+  subgraph L2["Durable Execution Layer"]
+    direction TB
+    API["FastAPI Gateway"]:::service
+    PG["PostgreSQL · authoritative<br/>ledger · reservations<br/>outbox · effects · reports"]:::datastore
+    PUB["Outbox Publisher"]:::service
+    KAFKA["Kafka<br/>at-least-once"]:::datastore
+    WORK["Execution Workers"]:::service
+    SIM["Simulator Effects"]:::service
+    REC["Recovery<br/>Service"]:::service
+    API --> PG --> PUB --> KAFKA --> WORK --> SIM
+    REC -.-> PG
+  end
+
+  subgraph L3["Stability & Investigation Layer"]
+    direction TB
+    GRAPH["Committed-Effect Graph"]:::control
+    CTRL["Collective Stability Controller"]:::control
+    INC["Incidents<br/>(PostgreSQL)"]:::datastore
+    INV["Incident Investigator<br/>(LangGraph)"]:::control
+    RPT["Persisted Reports<br/>(PostgreSQL)"]:::datastore
+    GRAPH --> CTRL --> INC
+    INC -. on-demand evidence .-> INV
+    INV --> RPT
+  end
+
+  subgraph L4["Operator Experience & Observability"]
+    direction TB
+    DASH["React Operations Dashboard<br/>API-backed"]:::ui
+    EXP["Experiment Lab"]:::ui
+    OBS["Prometheus · Grafana<br/>OpenTelemetry · Jaeger"]:::ui
+    DASH --- EXP
+    EXP ~~~ OBS
+  end
+
+  subgraph L5["Deployment / Platform"]
+    direction TB
+    CMP["Local Docker Compose"]:::infra
+    K8S["Local Kubernetes Helm<br/>(runtime unverified)"]:::infra
+    TF["Terraform"]:::infra
+    AWS["Private AWS Demo<br/>(current state unknown)"]:::infra
+    CMP ~~~ K8S ~~~ TF
+    TF -. provisions .-> AWS
+  end
+
+  L1 -->|proposals| L2
+  L2 -->|committed effects| L3
+  L3 -. reports via API .-> L4
+  L4 ~~~ L5
+
+  style L1 fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  style AGENTS fill:#ffffff,stroke:#cbd5e1,color:#334155
+  style L2 fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  style L3 fill:#faf8ff,stroke:#d6cee8,color:#334155
+  style L4 fill:#f5fbfa,stroke:#c5ded9,color:#334155
+  style L5 fill:#fffbf6,stroke:#e6d5c6,color:#334155
 ```
 
-Dashed arrows indicate on-demand evidence and report access, not automatic execution; the dashboard also reads operational data independently via the API. PostgreSQL owns correctness; Kafka is at-least-once, with retries, replay and reconciliation for ambiguous effects. Redis is advisory, not a correctness authority or billing cap. Bedrock is optional; Prometheus, Grafana, OpenTelemetry and Jaeger provide observability, and Terraform describes an optional private AWS deployment. See [architecture details](docs/ARCHITECTURE.md).
+LangGraph Cost and Performance agents submit proposals through the FastAPI gateway, which records reservations and an outbox in PostgreSQL's authoritative ledger. Kafka delivers events at least once to workers that apply simulator effects; the recovery service retries or reconciles work, and PostgreSQL persists effects, incidents and investigation reports. The committed-effect graph and deterministic Collective Stability Controller detect harmful interactions, and the LangGraph Investigator examines evidence on demand. The React dashboard and Experiment Lab access operational data through the API. Redis is advisory, and Bedrock reasoning is optional and unverified live. Prometheus, Grafana, OpenTelemetry and Jaeger provide observability. Docker Compose supports local operation; the local Helm/Kubernetes chart is runtime-unverified, and Terraform describes a private AWS demo whose current state is unknown. See [architecture details](docs/ARCHITECTURE.md).
 
 ## Execution and recovery
 
