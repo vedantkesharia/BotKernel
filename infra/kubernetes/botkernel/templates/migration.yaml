@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: botkernel-migrate-{{ .Release.Revision }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-postgres
+          image: postgres:16
+          command: [sh, -c, 'until pg_isready -h postgres -U botkernel -d botkernel; do sleep 2; done']
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+      containers:
+        - name: migrate
+          image: {{ .Values.backendImage | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [python, -c, "from botkernel.core import initialize; initialize()"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.databaseSecret | quote }}
+                  key: database-url
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: botkernel
+description: Local single-node BotKernel simulator stack
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

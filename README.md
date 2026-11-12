@@ -9,37 +9,53 @@ BotKernel is a distributed AgentOps platform for detecting and containing harmfu
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph Agents["Agent reasoning"]
-    C[LangGraph Cost Agent]
-    P[LangGraph Performance Agent]
-    D[Deterministic provider]
-    B[Optional Bedrock Converse]
-    C --> D
-    P --> D
-    C -. explicitly configured .-> B
-    P -. explicitly configured .-> B
+flowchart TB
+  subgraph A["Agent reasoning"]
+    direction TB
+    T[Simulator telemetry] --> C[LangGraph Cost agent]
+    T --> P[LangGraph Performance agent]
+    C --> G[FastAPI gateway]
+    P --> G
+    D[Deterministic provider] -. default .-> C
+    D -. default .-> P
+    B[Optional Bedrock] -. configured provider .-> C
+    B -. configured provider .-> P
   end
-  C -->|proposal| G[FastAPI gateway]
-  P -->|proposal| G
-  G -->|transaction: reservation + ledger + outbox| PG[(PostgreSQL authority)]
-  PG --> Pub[Outbox publisher]
-  Pub -->|at-least-once| K[Kafka]
-  K --> W[Execution worker]
-  W --> R[Simulated resource]
-  W -->|receipt and committed effect| PG
-  PG --> EG[Committed-effect graph]
-  EG --> SC[Deterministic Stability Controller]
-  SC -->|resource-specific hold / lifecycle| PG
-  PG --> ER[Evidence retrieval]
-  ER --> I[Investigator]
-  I -. optional analysis .-> B
-  I -->|persisted report| PG
-  PG --> UI[React dashboard]
-  Redis[(Redis advisory state)] -. budgets / coordination hints .-> Agents
-  Prom[Prometheus / Grafana] -. metrics .-> G
-  OTel[OpenTelemetry / Jaeger] -. traces .-> G
-  TF[Terraform / private AWS deployment] -. deployment option .-> G
+  subgraph E["Durable execution"]
+    direction TB
+    G -->|admit transaction| DB[(PostgreSQL ledger + outbox)]
+    DB --> PUB[Outbox publisher]
+    PUB -->|at-least-once| K[Kafka]
+    K --> W[Execution worker]
+    W --> R[Simulator effect]
+    R -->|receipt and finalization| DB
+  end
+  Redis[(Redis advisory state)] -. budgets / hints .-> C
+  Redis -. budgets / hints .-> P
+```
+
+```mermaid
+flowchart TB
+  subgraph S["Stability and evidence"]
+    direction TB
+    DB[(PostgreSQL committed effects)] --> EG[Committed-effect graph]
+    EG --> SC[Deterministic Stability Controller]
+    SC -->|hold and incident lifecycle| DB
+    DB --> EV[Read-only evidence retrieval]
+  end
+  subgraph I["Investigation"]
+    direction TB
+    EV --> INV[LangGraph Investigator]
+    INV -. optional analysis .-> BED[Optional Bedrock]
+    INV -->|persist report| DB
+  end
+  subgraph O["Operations and deployment"]
+    direction TB
+    DB --> UI[React operations console]
+    MET[Prometheus / Grafana] -. metrics .-> G[FastAPI / workers]
+    TRACE[OpenTelemetry / Jaeger] -. traces .-> G
+    TF[Terraform / AWS deployment] -. deploys services .-> G
+  end
 ```
 
 PostgreSQL owns correctness. Kafka delivery is at-least-once; consumers and effects require idempotency/reconciliation. Redis is advisory and is not a correctness authority or a cloud billing cap.
@@ -63,11 +79,27 @@ PostgreSQL owns correctness. Kafka delivery is at-least-once; consumers and effe
 | Investigation | Evidence retrieval, citation validation, persisted reports and idempotent request handling | Deterministic by default; live Bedrock inference unverified |
 | Dashboard | Landing, Mission Control, Agent Fleet, Effect Graph, Investigations, Experiment Lab | Operator API is unauthenticated; keep private/loopback |
 | Observability | Prometheus/Grafana and OpenTelemetry/Jaeger integrations | See [observability notes](docs/OBSERVABILITY.md) for scope |
-| Deployment | Docker Compose and Terraform/private AWS deployment assets | Historical AWS state is not a current-state assertion; no Kubernetes deployment is claimed |
+| Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | Historical AWS state is not a current-state assertion; Kubernetes runtime is unverified |
 
 ## Evaluation
 
 BotKernel includes seeded discrete-event controller comparisons and a PostgreSQL/Kafka real-system benchmark. Simulation metrics describe modeled scenarios, not production detection accuracy. Real-system numbers are single-host observations and must be read with their workload, uncertainty, and limitations in [BENCHMARKS.md](docs/BENCHMARKS.md) and [BENCHMARK_AUDIT.md](docs/BENCHMARK_AUDIT.md). Do not compare simulated throughput with measured database/Kafka throughput.
+
+The retained local PostgreSQL/Kafka runs measured 25 actions at concurrency 1, 50 at concurrency 5, and 100 at concurrency 10. Observed committed-effect throughput ranged from **2.704 to 3.585 effects/s**; admission p95 ranged from **175 to 1,915 ms**, and completion p95 from **538 to 4,382 ms**. These are single-host measurements; the benchmark does not measure stage latency, consumer lag, or peak CPU/memory. See the saved run reports for exact methodology and caveats.
+
+## Technology choices
+
+| Technology | Role |
+|---|---|
+| Python / FastAPI | Admission API, workers, controller and evidence services |
+| LangGraph | Stateful Cost/Performance agent and investigator workflows |
+| PostgreSQL | Authoritative ledger, reservations, outbox, effects and reports |
+| Kafka | Asynchronous at-least-once event delivery |
+| Redis | Advisory coordination and budget state |
+| React / TypeScript | Operations dashboard and Experiment Lab |
+| Docker Compose | Reproducible local multi-service environment |
+| Terraform / AWS | Optional private single-host deployment; current cloud state unknown |
+| Prometheus, Grafana, OpenTelemetry, Jaeger | Metrics, dashboards, traces and trace inspection |
 
 ## Quick start
 
@@ -121,6 +153,7 @@ Local Docker Compose is the supported evaluation path. Terraform and deployment 
 - [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Collective Stability algorithm](docs/COLLECTIVE_STABILITY_ALGORITHM.md)
 - [LangGraph and providers](docs/LANGGRAPH.md) · [Bedrock acceptance](docs/BEDROCK_ACCEPTANCE.md)
 - [Benchmarks](docs/BENCHMARKS.md) · [Benchmark audit](docs/BENCHMARK_AUDIT.md) · [Portfolio walkthrough](docs/PORTFOLIO.md)
+- [Implementation walkthrough](docs/IMPLEMENTATION_WALKTHROUGH.md) · [Local Kubernetes chart (not runtime-validated)](infra/kubernetes/README.md)
 
 ## Rights
 

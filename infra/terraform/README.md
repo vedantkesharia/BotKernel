@@ -1,6 +1,6 @@
 # AWS single-host demo foundation
 
-This is an un-applied Terraform foundation for an isolated, nonproduction portfolio demo. It targets one Amazon Linux 2023 EC2 host running Docker Compose; PostgreSQL, single-node Kafka, Redis, workers, agents and the dashboard remain local containers on persistent encrypted EBS. It is not HA or a production database/broker design.
+This Terraform configuration describes an isolated, nonproduction portfolio demo using one Amazon Linux 2023 EC2 host running Docker Compose; PostgreSQL, single-node Kafka, Redis, workers, agents and the dashboard run as containers on persistent encrypted EBS. Earlier private deployment was documented, but current cloud state is **unknown**. This is not an HA or production database/broker design.
 
 ## Resources and defaults
 

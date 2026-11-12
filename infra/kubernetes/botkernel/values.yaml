@@ -1,0 +1,20 @@
+# Images must be built locally and loaded into the kind cluster before installation.
+backendImage: botkernel-api:local
+dashboardImage: botkernel-dashboard:local
+imagePullPolicy: IfNotPresent
+
+# Create this Secret out of band with keys postgres-password and database-url.
+databaseSecret: botkernel-database
+
+storage:
+  postgres: 2Gi
+  kafka: 2Gi
+  redis: 1Gi
+  checkpoint: 1Gi
+  experiments: 1Gi
+
+agents:
+  # Deterministic agents can submit simulator actions; opt in for a demo.
+  enabled: false
+  costResource: service-a
+  performanceResource: service-a

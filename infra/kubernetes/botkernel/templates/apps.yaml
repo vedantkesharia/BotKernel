@@ -1,0 +1,121 @@
+{{- $root := . }}
+{{- $apps := list "api" "publisher" "worker" "recovery" "controller" "dashboard" }}
+{{- if .Values.agents.enabled }}
+{{- $apps = concat $apps (list "cost" "performance") }}
+{{- end }}
+{{- range $name := $apps }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: botkernel-{{ $name }}
+spec:
+  replicas: 1
+  {{- if or (eq $name "cost") (eq $name "performance") }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      app: botkernel-{{ $name }}
+  template:
+    metadata:
+      labels:
+        app: botkernel-{{ $name }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      {{- if and (ne $name "api") (ne $name "dashboard") }}
+      initContainers:
+        - name: wait-api
+          image: {{ $root.Values.backendImage | quote }}
+          imagePullPolicy: {{ $root.Values.imagePullPolicy }}
+          command:
+            - sh
+            - -c
+            - 'until python -c "from urllib.request import urlopen; urlopen(''http://api:8000/ready'', timeout=3).read()"; do sleep 3; done'
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ if eq $name "dashboard" }}{{ $root.Values.dashboardImage | quote }}{{ else }}{{ $root.Values.backendImage | quote }}{{ end }}
+          imagePullPolicy: {{ $root.Values.imagePullPolicy }}
+          {{- if eq $name "dashboard" }}
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          {{- else }}
+          envFrom:
+            - configMapRef:
+                name: botkernel-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.databaseSecret | quote }}
+                  key: database-url
+            {{- if has $name (list "publisher" "worker" "recovery" "controller") }}
+            - name: ROLE
+              value: {{ $name | quote }}
+            {{- end }}
+            {{- if or (eq $name "cost") (eq $name "performance") }}
+            - name: AGENT_ROLE
+              value: {{ $name | quote }}
+            - name: BOTKERNEL_AGENT_RESOURCE
+              value: {{ if eq $name "cost" }}{{ $root.Values.agents.costResource | quote }}{{ else }}{{ $root.Values.agents.performanceResource | quote }}{{ end }}
+            - name: BOTKERNEL_AGENT_CHECKPOINTS
+              value: /checkpoints/agent.sqlite
+            {{- end }}
+          {{- if has $name (list "publisher" "worker" "recovery" "controller") }}
+          command: [python, -m, botkernel.worker]
+          {{- else if or (eq $name "cost") (eq $name "performance") }}
+          command: [python, -m, botkernel.lang_agents]
+          {{- end }}
+          {{- if eq $name "api" }}
+          ports:
+            - containerPort: 8000
+          startupProbe:
+            httpGet: {path: /ready, port: 8000}
+            failureThreshold: 120
+            periodSeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: {path: /ready, port: 8000}
+            timeoutSeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: 8000}
+            periodSeconds: 20
+          volumeMounts:
+            - name: experiments
+              mountPath: /app/benchmarks/results
+          {{- else if or (eq $name "cost") (eq $name "performance") }}
+          volumeMounts:
+            - name: checkpoints
+              mountPath: /checkpoints
+          {{- end }}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          {{- end }}
+      {{- if eq $name "api" }}
+      volumes:
+        - name: experiments
+          persistentVolumeClaim:
+            claimName: botkernel-experiments
+      {{- else if or (eq $name "cost") (eq $name "performance") }}
+      volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: botkernel-{{ $name }}-checkpoint
+      {{- end }}
+---
+{{- end }}

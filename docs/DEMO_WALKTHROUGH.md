@@ -14,7 +14,7 @@ From the repository root:
 $env:BOTKERNEL_LIVE_DEMO_PROJECT = "botkernel-live-demo-$(Get-Random)"
 $env:DEMO_RESOURCE = "service-a"
 $env:DEMO_TIMEOUT_SECONDS = "180"
-.scriptsun-live-demo.ps1
+& (Join-Path $PWD 'scripts\run-live-demo.ps1')
 ```
 
 The script builds/starts the local stack, waits for `/ready`, runs eight bounded actions, and waits for controller detection, sustained verification, recurrence and selective containment. It then requests an investigation with `provider=deterministic_mock`, GETs the saved report, repeats the same idempotency key and checks every report action against the gateway ledger and current Effect Graph window.

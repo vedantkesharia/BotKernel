@@ -1,0 +1,14 @@
+{{- range $name, $size := dict "cost-checkpoint" .Values.storage.checkpoint "performance-checkpoint" .Values.storage.checkpoint "experiments" .Values.storage.experiments }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: botkernel-{{ $name }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ $size | quote }}
+---
+{{- end }}

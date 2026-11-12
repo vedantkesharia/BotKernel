@@ -8,7 +8,7 @@ The gateway serializes quota admission and idempotency with PostgreSQL advisory 
 
 The Collective Stability Controller reads committed effects and resource-specific reversal evidence, uses hysteresis and a sustained verification window, applies bounded temporary holds, reopens on recurrence and escalates after its intervention budget. Incident evidence retains initial and latest detection snapshots for reconstruction. The seeded comparison harness is a simulation, not production telemetry or a PostgreSQL/Kafka benchmark; do not claim controller superiority from it.
 
-Cost and Performance agents use separate LangGraph processes and role-specific SQLite checkpoints. The investigator uses deterministic, read-only PostgreSQL evidence collection; optional Bedrock hypotheses are labeled separately from verified facts and deterministic inferences. Neither agent nor investigator has direct database, Kafka, infrastructure or remediation tools. Any agent proposal still goes through the gateway and deterministic controller.
+Cost and Performance agents use separate LangGraph processes and role-specific SQLite checkpoints. The investigator uses deterministic, read-only PostgreSQL evidence collection; optional Bedrock hypotheses are labeled separately from verified facts and deterministic inferences. Model providers have no direct database, Kafka, infrastructure or remediation tools. Any agent proposal still goes through the gateway and deterministic controller.
 
 The investigator uses idempotent PostgreSQL report claims, a fenced lease and a bounded pool of session advisory slots. Evidence statements have a five-second timeout. Session loss can release an advisory slot while Python computation continues, and the graph has no hard cancellation/whole-request deadline; fencing prevents a stale owner from finalizing but does not stop that computation.
 
@@ -20,9 +20,13 @@ The optional local Compose profile provides Prometheus, provisioned Grafana, an 
 
 Terraform and Compose describe an optional private, single-host AWS demonstration using EC2, ECR, CloudWatch Logs and SSM. No live cloud state is asserted here. Runtime credentials belong in host-only secret files or an instance role, never in source or images. Keep application ports private; operator routes are unauthenticated and require a separate access-control design before any public exposure. Review [the Terraform guide](../infra/terraform/README.md) for deployment prerequisites and approval gates. This design is not highly available; backup/restore has not been verified, and cloud storage and runtime can incur charges.
 
+## Local Kubernetes templates
+
+The [local Helm chart](../infra/kubernetes/README.md) defines single-instance stateful services, a migration job, application deployments and optional agents with distinct checkpoint claims. Services are ClusterIP and the database Secret is supplied separately. Templates have been linted and rendered, but the chart has not been installed or validated end to end; it is not an HA or production deployment.
+
 ## Runtime limitations
 
 - The API and operator mutation routes have no browser authentication. Loopback and SSM are a private-demo boundary, not a public security model.
 - The Compose broker is a single-node Kafka and the database is a single-host PostgreSQL instance; there is no HA or managed failover.
-- The deployment container set, Docker Compose installation on AL2023, image build, runtime startup and AWS IAM behavior are not validated against a live EC2 instance.
-- No AWS resources, credentials, Bedrock requests or paid services have been accessed in this workspace.
+- Historical single-host AWS demonstrations do not establish current deployment or IAM state.
+- Live Bedrock inference, Kubernetes runtime and backup/restore remain unverified.
