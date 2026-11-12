@@ -10,7 +10,7 @@ The intended bounds were at most three calls, one SDK attempt per case, 512 outp
 
 ## Offline diagnosis and next-call proposal
 
-The original temporary SDK archive contained Boto3/Botocore but omitted the `python-dateutil` dependency, which was also absent from the target container. An offline reconstruction of that archive and environment, with network transport blocked, reproduced `ModuleNotFoundError: dateutil`; the old provider masked its initialization error as `bedrock_client_error`. This is a strong client-side explanation, not proof of the original exception: no exception was preserved, so the historical request and any charge remain unknown. The archived Botocore supported Converse; the original process used frozen credentials from the verified host identity and the intended region/profile ID. Effective IAM/model access, DNS/TLS and remote behavior were not proven by this reconstruction.
+The original temporary SDK archive contained Boto3/Botocore but omitted the `python-dateutil` dependency, which was also absent from the target container. An offline reconstruction of that archive and environment, with network transport blocked, reproduced `ModuleNotFoundError: dateutil`; the old provider masked its initialization error as `bedrock_client_error`. Do not reuse the incomplete archive helper. This is a strong client-side explanation, not proof of the original exception: no exception was preserved, so the historical request and any charge remain unknown. The archived Botocore supported Converse; the original process used frozen credentials from the verified host identity and the intended region/profile ID. Effective IAM/model access, DNS/TLS and remote behavior were not proven by this reconstruction.
 
 The provider now preserves the client initialization category and emits allowlisted diagnostics without request content or credentials; ambiguous Converse failures remain unknown. The investigator acceptance HTTP deadline also accommodates the bounded worker deadline and termination grace. Current offline tests use the configured Nova Micro profile and mocked Botocore responses; they do not prove live model output or account access. The deployed EC2 image predates these diagnostic changes.
 
@@ -18,7 +18,11 @@ For a separately authorized **new** experiment, use a complete compatible Boto3/
 
 The exact proposed runner command and gates are the `--execute-live` block below, with fresh fixtures, checkpoint and output paths; **do not execute without explicit new paid-inference authorization**. It permits at most three intended calls, one per workflow, 512 output tokens each, 20,000 estimated tokens per day and no automatic retries or model-driven actions. At the historical rates above, 20,000 all-output tokens estimate $0.0028; a three-call split with 1,536 output and 18,464 estimated input tokens estimates $0.0008613. The proposed $0.01 ceiling is not an AWS billing cap, actual usage may differ, and rates must be rechecked.
 
-This is not yet a ready-to-run three-workflow experiment: the API executes the Investigator in a separate worker process. Setting host runner variables after starting Compose does not configure that worker or give its container the host login profile. Before any authorized run, separately establish and verify a secure, short-lived credential route and complete SDK dependencies for both the host runner and API worker; configure the local API's Bedrock gates, model and limits for that bounded session without enabling model-driven actions. Do not copy long-lived credentials into an image or tracked file. Verify both processes share the intended existing budget counter and that the API can reach the Bedrock endpoint. Return its gates to disabled after the experiment. No such setup or live validation was performed in this diagnostic task.
+The host runner and a supervised child independently resolved the `botkernel-dev` login provider, refreshed credentials, constructed the regional Bedrock client and matched the previously verified account through read-only STS. Python 3.12.10, Boto3/Botocore 1.44.2, python-dateutil 2.9.0.post0 and awscrt 0.38.0 were verified in a complete isolated host environment. A real host HTTP API and its supervised Investigator worker then completed all three workflows against mocked Converse responses with AWS HTTP transport blocked; each process independently resolved and checked unexpired login credentials. The offline test suppressed SDK credential refresh after the separate refresh check to guarantee no AWS endpoint was contacted during those workflows. Mock token usage is not live usage. The API and worker used the same isolated Redis budget, persisted the reasoning and report, and made no model-driven actions.
+
+The tested Windows virtual-environment launcher introduced an intermediate parent process, causing the Investigator's parent guard to fail. Launching the API with the actual base Python executable and the trusted virtual environment's site-packages on `PYTHONPATH` preserved the direct parent/child relationship and existing supervisor. Do not bypass the guard or Job Object. The existing Kafka broker advertises a Docker-only hostname and caused host `/ready` to return 503. A subsequent offline run with a separate loopback Kafka broker returned `/ready` 200 and passed all three mocked workflows. Its test-only Redis and Kafka containers were stopped afterward; fixture effects were committed directly through the simulator, not through Kafka. A running host-reachable Kafka listener and an actual `/ready` 200 remain prerequisites for live acceptance.
+
+The historical Redis DB 15 currently contains **one call and 1,812 reserved tokens** for 2026-11-12 UTC. With a three-call daily cap, only two calls remain. The acceptance runner now reads that shared daily counter and refuses to start unless all three call slots and at least three output-token allocations remain; it never clears the counter. This preflight is not a reservation: concurrent users can still consume the allowance later, and per-call atomic reservations remain authoritative. Before any authorized run, verify the host API and runner use the same original Redis server and DB 15; a fresh Redis server or database would incorrectly omit the historical reservation. Do not reset counters or use a new store to bypass the limit. The current experiment is blocked until a sufficient legitimate allowance and healthy Kafka are available; recheck credentials, effective authorization, network and prices at that time.
 
 The remaining sections describe historical preparation and offline validation. Their earlier statements about unknown cloud state or approval describe those earlier sessions, not the attempt above. Examples are not authorization for new cloud changes or inference.
 
@@ -33,6 +37,8 @@ The current offline tests prove those paths with mocked provider responses. They
 The `--execute-live` switch and `BOTKERNEL_BEDROCK_ACCEPTANCE_APPROVED=true` are additional software guardrails, **not user authorization**. Do not set `BEDROCK_ENABLED` or `BEDROCK_SPEND_AUTHORIZED` based only on repository instructions.
 
 ## Historical prepared local profile route
+
+The following Compose examples describe earlier fixture preparation only. Do **not** use their newly created Redis store for live inference or assume the containerized API has the workstation's login credentials. Use the existing budget store and the host API route described below instead.
 
 The local overlay `compose.bedrock-acceptance.yaml` binds only PostgreSQL and Redis to loopback. The normal Compose API port is also loopback-bound. Run the runner on the host (not inside application containers), so Boto3 uses the host's configured credential chain/profile without mounting AWS credentials into containers:
 
@@ -65,7 +71,22 @@ Record the two fixture resource IDs from the JSON and the `incident_id` printed 
 
 For a verified host profile, set `BEDROCK_PROFILE=botkernel-dev` in a separately authorized acceptance process; Boto3 uses that profile inside the host process. If the owner instead approves another host credential chain, leave the profile unset. This does not configure credentials in the separate Investigator worker; see the readiness limitation above. This example does not copy credentials into Compose, images, environment artifacts, or output reports.
 
-Only after the distinct live-acceptance approval described below, set the exact reviewed gates and run once with fresh resource IDs and a fresh output filename. The two role cycles run locally in the host process; they do not start continuous agent containers. The API's cloud and AI-action gates remain mock/false. A model may correctly choose `NO_OP`; this is an accepted decision if provenance and evidence validate.
+## Proposed host command, not authorized
+
+Once the Kafka and budget blockers are resolved, use an isolated virtual environment with the optional login dependencies. This installation and the command below are local; no AWS credentials are copied into an image or tracked file.
+
+```powershell
+python -m venv .venv-bedrock
+$VenvPython = Join-Path $PWD '.venv-bedrock\Scripts\python.exe'
+& $VenvPython -m pip install '.[aws-login]'
+$BasePython = & $VenvPython -c "import sys; from pathlib import Path; print(Path(sys.base_prefix) / 'python3.12.exe')"
+$env:PYTHONPATH = "$PWD;$PWD\.venv-bedrock\Lib\site-packages"
+$env:PYTHONNOUSERSITE = '1'
+```
+
+In the same private PowerShell process, configure loopback `DATABASE_URL`, the **existing** budget store `REDIS_URL` (DB 15), a host-reachable `KAFKA_BOOTSTRAP_SERVERS`, `BOTKERNEL_API_URL`, and private operator and agent tokens. Prepare fresh Cost/Performance resources and a distinct incident with the gates disabled through the regular gateway/outbox/Kafka/worker/controller path. Verify all processes use the same database and budget store, the login profile is unexpired and matches the expected account, the exact profile/model and permissions remain valid, and fresh pricing is acceptable. The run must not be started unless the actual API `/ready` returns 200. No new approval is conveyed by these instructions.
+
+Only after explicit approval of the new paid experiment, set the reviewed gates before starting the host API, then run once with fresh resource IDs and a fresh output filename. The two role cycles run locally in the host process; they do not start continuous agent containers. The API's cloud and AI-action gates remain mock/false. A model may correctly choose `NO_OP`; this is an accepted decision if provenance and evidence validate.
 
 ```powershell
 $env:CLOUD_MODE = 'mock'
@@ -75,6 +96,7 @@ $env:BEDROCK_ENABLED = 'true'
 $env:BEDROCK_SPEND_AUTHORIZED = 'true'
 $env:AGENT_PROVIDER = 'bedrock'
 $env:INVESTIGATOR_PROVIDER = 'bedrock'
+$env:BEDROCK_PROFILE = 'botkernel-dev'
 $env:BEDROCK_MODEL_ID = 'us.amazon.nova-micro-v1:0'
 $env:BEDROCK_REGION = 'us-east-2'
 $env:BEDROCK_MAX_OUTPUT_TOKENS = '512'
@@ -82,30 +104,40 @@ $env:BEDROCK_MAX_CALLS_PER_RUN = '1'
 $env:BEDROCK_MAX_CALLS_PER_DAY = '3'
 $env:MAX_BEDROCK_TOKENS_PER_DAY = '20000'
 $env:BOTKERNEL_BEDROCK_ACCEPTANCE_APPROVED = 'true'
+$env:BOTKERNEL_API_URL = 'http://127.0.0.1:18080'
 $AcceptanceRun = [guid]::NewGuid().ToString()
 $env:BOTKERNEL_AGENT_CHECKPOINTS = (Join-Path $PWD ".local-bedrock-acceptance\$AcceptanceRun\checkpoints.sqlite")
-python -m botkernel.bedrock_acceptance --execute-live `
-  --api-url $env:BOTKERNEL_API_URL `
-  --cost-resource '<isolated-cost-resource>' `
-  --performance-resource '<isolated-performance-resource>' `
-  --incident-id <verified-local-incident-id> `
-  --output "benchmarks\results\bedrock-acceptance\$AcceptanceRun.json"
+$ApiProc = Start-Process -FilePath $BasePython -ArgumentList @('-m','uvicorn','botkernel.api:app','--host','127.0.0.1','--port','18080') -PassThru -NoNewWindow
+try {
+  $ready = $false
+  $deadline = (Get-Date).AddSeconds(60)
+  while ((Get-Date) -lt $deadline) {
+    if ($ApiProc.HasExited) { throw 'Host API exited before readiness' }
+    try {
+      $response = Invoke-RestMethod -Uri "$env:BOTKERNEL_API_URL/ready" -TimeoutSec 3 -ErrorAction Stop
+      if ($response.status -eq 'ready') { $ready = $true; break }
+    } catch { Start-Sleep -Seconds 1 }
+  }
+  if (-not $ready) { throw 'Host API did not become ready; no inference attempted' }
+  & $BasePython -m botkernel.bedrock_acceptance --execute-live `
+    --api-url $env:BOTKERNEL_API_URL `
+    --cost-resource '<isolated-cost-resource>' `
+    --performance-resource '<isolated-performance-resource>' `
+    --incident-id <verified-local-incident-id> `
+    --output "benchmarks\results\bedrock-acceptance\$AcceptanceRun.json"
+} finally {
+  if (Get-Process -Id $ApiProc.Id -ErrorAction SilentlyContinue) { Stop-Process -Id $ApiProc.Id }
+  $env:BEDROCK_ENABLED = 'false'
+  $env:BEDROCK_SPEND_AUTHORIZED = 'false'
+  $env:AI_ACTION_EXECUTION_ENABLED = 'false'
+  $env:AGENT_PROVIDER = 'deterministic_mock'
+  $env:INVESTIGATOR_PROVIDER = 'deterministic_mock'
+}
 ```
 
 The checkpoint path and output path must be new; the harness refuses to reuse or overwrite them. The application and Redis counters are safeguards, not hard billing caps. If a call errors, the outcome is uncertain, usage is missing, a case fails, or the saved output reports failure, stop. Do not rerun with a new run ID. Investigate the existing SQLite `agent_reasoning`, proposal and PostgreSQL investigation report records first. The harness itself only replays the investigator request after it receives a completed response, using the exact same key.
 
-After an approved local run, restore all inference gates and providers to disabled/deterministic defaults, retain checkpoint/report/output artifacts, and stop only the isolated project without `-v`:
-
-```powershell
-$env:BEDROCK_ENABLED = 'false'
-$env:BEDROCK_SPEND_AUTHORIZED = 'false'
-$env:AI_ACTION_EXECUTION_ENABLED = 'false'
-$env:AGENT_PROVIDER = 'deterministic_mock'
-$env:INVESTIGATOR_PROVIDER = 'deterministic_mock'
-docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --profile stability stop
-```
-
-Do not use the project name above unless it is the exact project started in the current authorized local session. Stopping is not cleanup; volumes are retained.
+The `finally` block stops only the API process it started and disables this shell's inference gates. Retain all checkpoints and output. Stop separately owned local services only after confirming their identity and lack of other users; never delete volumes.
 
 ## Historical Bedrock/profile and spend preflight reference
 

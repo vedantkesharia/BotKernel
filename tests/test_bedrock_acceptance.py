@@ -7,6 +7,7 @@ from botkernel.bedrock_acceptance import (
     _require_usage,
     validate_agent_observation,
     validate_live_configuration,
+    validate_remaining_budget,
 )
 
 
@@ -64,6 +65,88 @@ def test_local_fixture_preparation_refuses_non_loopback_endpoint(tmp_path, monke
     from botkernel.bedrock_acceptance import prepare_local_fixtures
     with pytest.raises(AcceptanceError, match="api_must_be_loopback"):
         prepare_local_fixtures(api_url="https://example.invalid", output=tmp_path/"fixture.json")
+
+
+@pytest.mark.parametrize(
+    ("values", "error"),
+    [
+        ((None, None), None),
+        ((b"0", b"1812"), None),
+        ((b"1", b"1812"), "acceptance_daily_budget_insufficient"),
+        ((b"0", b"19000"), "acceptance_daily_budget_insufficient"),
+        ((b"1", None), "budget_counter_unavailable"),
+        ((b"invalid", b"0"), "budget_counter_unavailable"),
+        ((b"-1", b"0"), "budget_counter_unavailable"),
+    ],
+)
+def test_acceptance_preflight_preserves_and_checks_shared_budget(monkeypatch, values, error):
+    import redis
+
+    class Counter:
+        def hmget(self, key, *fields):
+            assert key.startswith("botkernel:bedrock-budget:")
+            assert fields == ("calls", "reserved_tokens")
+            return values
+
+        def exists(self, key):
+            return False
+
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:6379/15")
+    monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
+    if error:
+        with pytest.raises(AcceptanceError, match=error):
+            validate_remaining_budget()
+    else:
+        validate_remaining_budget()
+
+
+def test_insufficient_shared_budget_stops_before_any_workflow(tmp_path, monkeypatch):
+    import botkernel.bedrock_acceptance as acceptance
+    import redis
+
+    class Counter:
+        def hmget(self, key, *fields):
+            return (b"1", b"1812")
+
+    _approved_environment(monkeypatch, tmp_path / "new-checkpoint.sqlite")
+    monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
+    output = tmp_path / "acceptance.json"
+    with pytest.raises(AcceptanceError, match="acceptance_daily_budget_insufficient"):
+        acceptance.run_acceptance(
+            api_url="http://127.0.0.1:8000", cost_resource="cost",
+            performance_resource="performance", incident_id=1, output=output,
+        )
+    assert not output.exists()
+    assert not (tmp_path / "new-checkpoint.sqlite").exists()
+
+
+def test_acceptance_rejects_existing_budget_without_required_fields(monkeypatch):
+    import redis
+
+    class Counter:
+        def hmget(self, key, *fields):
+            return (None, None)
+
+        def exists(self, key):
+            return True
+
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:6379/15")
+    monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
+    with pytest.raises(AcceptanceError, match="budget_counter_unavailable"):
+        validate_remaining_budget()
+
+
+def test_acceptance_rejects_unavailable_budget_store(monkeypatch):
+    import redis
+
+    class Counter:
+        def hmget(self, key, *fields):
+            raise redis.ConnectionError("unavailable")
+
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:6379/15")
+    monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
+    with pytest.raises(AcceptanceError, match="budget_counter_unavailable"):
+        validate_remaining_budget()
 
 
 def test_live_cli_accepts_all_case_arguments_before_configuration_gate(

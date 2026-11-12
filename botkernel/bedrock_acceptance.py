@@ -9,6 +9,7 @@ import sqlite3
 import sys
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -74,6 +75,29 @@ def validate_live_configuration(api_url: str | None = None) -> None:
     checkpoint = Path(checkpoint_path).expanduser()
     if checkpoint.exists() or Path(str(checkpoint) + ".owner").exists():
         raise AcceptanceError("acceptance_checkpoint_must_be_new")
+
+
+def validate_remaining_budget() -> None:
+    import redis
+
+    try:
+        client = redis.Redis.from_url(os.environ["REDIS_URL"], socket_timeout=1, socket_connect_timeout=1)
+        key = "botkernel:bedrock-budget:" + datetime.now(timezone.utc).strftime("%Y%m%d")
+        calls, tokens = client.hmget(key, "calls", "reserved_tokens")
+        if calls is None and tokens is None:
+            if client.exists(key):
+                raise ValueError("incomplete budget counter")
+            calls, tokens = 0, 0
+        elif calls is None or tokens is None:
+            raise ValueError("incomplete budget counter")
+        else:
+            calls, tokens = int(calls), int(tokens)
+        if calls < 0 or tokens < 0:
+            raise ValueError("negative budget counter")
+    except (redis.RedisError, ValueError, TypeError, KeyError) as error:
+        raise AcceptanceError("budget_counter_unavailable") from error
+    if calls + 3 > 3 or tokens + 3 * 512 > 20000:
+        raise AcceptanceError("acceptance_daily_budget_insufficient")
 
 
 def validate_agent_observation(role: str, telemetry: dict[str, Any]) -> None:
@@ -337,6 +361,7 @@ def run_acceptance(
         raise AcceptanceError("acceptance_output_already_exists")
     if cost_resource == performance_resource:
         raise AcceptanceError("agent_resources_must_be_distinct")
+    validate_remaining_budget()
 
     from botkernel.core import engine
     from botkernel.lang_agents import run_once
