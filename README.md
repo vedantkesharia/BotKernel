@@ -10,55 +10,18 @@ BotKernel is a distributed AgentOps platform for detecting and containing harmfu
 
 ```mermaid
 flowchart TB
-  subgraph A["Agent reasoning"]
-    direction TB
-    T[Simulator telemetry] --> C[LangGraph Cost agent]
-    T --> P[LangGraph Performance agent]
-    C --> G[FastAPI gateway]
-    P --> G
-    D[Deterministic provider] -. default .-> C
-    D -. default .-> P
-    B[Optional Bedrock] -. configured provider .-> C
-    B -. configured provider .-> P
-  end
-  subgraph E["Durable execution"]
-    direction TB
-    G -->|admit transaction| DB[(PostgreSQL ledger + outbox)]
-    DB --> PUB[Outbox publisher]
-    PUB -->|at-least-once| K[Kafka]
-    K --> W[Execution worker]
-    W --> R[Simulator effect]
-    R -->|receipt and finalization| DB
-  end
-  Redis[(Redis advisory state)] -. budgets / hints .-> C
-  Redis -. budgets / hints .-> P
+  A["LangGraph Agents<br/>Cost + Performance"]
+  B["FastAPI Gateway<br/>PostgreSQL Transactional Outbox"]
+  C["Kafka + Execution Workers<br/>Durable Simulator Effects"]
+  D["Committed-Effect Graph<br/>Deterministic Stability Controller"]
+  E["Evidence-Grounded<br/>LangGraph Investigator"]
+  F["React Operations Dashboard"]
+  A --> B --> C --> D
+  D -. "on-demand evidence" .-> E
+  E -. "reports via API" .-> F
 ```
 
-```mermaid
-flowchart TB
-  subgraph S["Stability and evidence"]
-    direction TB
-    DB[(PostgreSQL committed effects)] --> EG[Committed-effect graph]
-    EG --> SC[Deterministic Stability Controller]
-    SC -->|hold and incident lifecycle| DB
-    DB --> EV[Read-only evidence retrieval]
-  end
-  subgraph I["Investigation"]
-    direction TB
-    EV --> INV[LangGraph Investigator]
-    INV -. optional analysis .-> BED[Optional Bedrock]
-    INV -->|persist report| DB
-  end
-  subgraph O["Operations and deployment"]
-    direction TB
-    DB --> UI[React operations console]
-    MET[Prometheus / Grafana] -. metrics .-> G[FastAPI / workers]
-    TRACE[OpenTelemetry / Jaeger] -. traces .-> G
-    TF[Terraform / AWS deployment] -. deploys services .-> G
-  end
-```
-
-PostgreSQL owns correctness. Kafka delivery is at-least-once; consumers and effects require idempotency/reconciliation. Redis is advisory and is not a correctness authority or a cloud billing cap.
+Dashed arrows indicate on-demand evidence and report access, not automatic execution; the dashboard also reads operational data independently via the API. PostgreSQL owns correctness; Kafka is at-least-once, with retries, replay and reconciliation for ambiguous effects. Redis is advisory, not a correctness authority or billing cap. Bedrock is optional; Prometheus, Grafana, OpenTelemetry and Jaeger provide observability, and Terraform describes an optional private AWS deployment. See [architecture details](docs/ARCHITECTURE.md).
 
 ## Execution and recovery
 
