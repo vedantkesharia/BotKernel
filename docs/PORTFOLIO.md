@@ -115,7 +115,7 @@ A separate bounded local benchmark exercises the actual FastAPI, PostgreSQL outb
 3. Open the Effect Graph and trace versioned committed actions; distinguish observed modifications from inferred reversals.
 4. Walk through gateway admission, PostgreSQL transactional outbox, Kafka at-least-once publication and receipt-based worker idempotency.
 5. Open incident `2`, explain the two controller interventions, recovery verification and recurrence, then open its persisted deterministic report and follow a cited action back to graph evidence.
-6. State limits plainly: current investigation is deterministic, live Bedrock is unverified, the operator console is private/unauthenticated, and seeded Experiment Lab data is not a production-performance claim.
+6. State limits plainly: current investigation is deterministic, live Bedrock is unverified, the operator console requires a credential and must remain private, and seeded Experiment Lab data is not a production-performance claim.
 
 ## Resume bullet candidates
 

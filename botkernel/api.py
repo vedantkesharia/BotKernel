@@ -8,20 +8,35 @@ from pathlib import Path as FilePath
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Path as ApiPath, Query
+from fastapi import Depends, FastAPI, HTTPException, Path as ApiPath, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime, ValidationError, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from botkernel.core import AdmissionError, engine, admit
 import redis
+from botkernel.security import authorize, validate_configuration
 
-app = FastAPI(title="BotKernel local gateway")
+app = FastAPI(title="BotKernel local gateway", dependencies=[Depends(authorize)],
+              docs_url=None, redoc_url=None, openapi_url=None)
 from botkernel.observability import ADMISSIONS, install_api, traced_span
 install_api(app, engine)
 
+
+@app.middleware("http")
+async def disable_response_caching(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 cache = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379"), socket_timeout=1, socket_connect_timeout=1)
 EXPERIMENT_RESULTS = FilePath(__file__).resolve().parents[1] / "benchmarks" / "results"
+
+
+@app.get("/auth/session")
+def operator_session():
+    return {"role": "operator"}
 
 
 class Action(BaseModel):
@@ -201,11 +216,12 @@ def publish_agent_decision(agent: Annotated[str, ApiPath(min_length=1,max_length
 
 @app.get("/ready")
 def ready():
+    validate_configuration()
     from confluent_kafka.admin import AdminClient
     try:
         with engine.connect() as c:
             revision = c.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0008":
+            if revision != "0009":
                 raise RuntimeError("migration required")
         AdminClient({"bootstrap.servers":os.getenv("KAFKA_BOOTSTRAP_SERVERS","kafka:9092")}).list_topics(timeout=3)
     except Exception as error:
@@ -298,8 +314,8 @@ def _record_incident_operator_action_transaction(
 
         recorded = connection.execute(
             text(
-                "INSERT INTO incident_operator_actions(incident_id,action,idempotency_key,reason) "
-                "VALUES(:incident,:action,:key,:reason) RETURNING created_at"
+                "INSERT INTO incident_operator_actions(incident_id,action,idempotency_key,reason,actor) "
+                "VALUES(:incident,:action,:key,:reason,'operator') RETURNING created_at"
             ),
             {
                 "incident": incident_id,
@@ -344,6 +360,7 @@ def _record_incident_operator_action(
                 "event": "incident_operator_action",
                 "incident_id": incident_id,
                 "botkernel_outcome": result["action"].lower(),
+                "actor": "operator",
             },
         )
         return result

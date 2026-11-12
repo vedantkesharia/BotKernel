@@ -79,6 +79,15 @@ button, input, select { background: #222420; border-color: #41453d; color: #eaed
 button:hover { border-color: #9cc9aa; }
 input::placeholder { color: #92978d; }
 
+.operator-access { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.operator-access-card { width: min(100%, 420px); padding: 32px; display: grid; gap: 16px; }
+.operator-access-card h1 { font-size: 28px; margin: 0; }
+.operator-access-card p { color: #a4a4ad; margin: 0; }
+.operator-access-card label { font-size: 13px; }
+.operator-access-card input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #484850; border-radius: 8px; }
+.operator-access-card a { color: #aaaab4; font-size: 13px; text-align: center; }
+.operator-access-card .alert-error { padding: 10px; border: 1px solid; border-radius: 8px; font-size: 13px; }
+
 /* Restrained grid treatment inspired by Aceternity's grid background pattern. */
 .hero-panel {
   background-color: #20251f;
@@ -205,6 +214,8 @@ pre { color: #d4dfd4; }
 .experiment-launch .eyebrow, .experiment-results .eyebrow { color: #d0d4d1; }
 .saved-run:hover, .saved-run.selected { background: #2b2e30; border-color: #6a6e70; }
 .experiment-results .downloads a { background: #292c2e; border-color: #505456; color: #d8dcda; }
+.experiment-results .downloads button { background: #292c2e; border: 1px solid #505456; color: #d8dcda; font-size: 11px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+.experiment-results .downloads button:hover { border-color: #8d9390; }
 .skip-link { background: #f0f1ef; color: #171918; }
 .graph-stage, .graph { background: #151719; }
 .graph-select-trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; min-width: 0; padding: 0 10px; border: 1px solid #414547; border-radius: 8px; color: #e4e6e2; background: #222527; font-size: 11px; cursor: pointer; }

@@ -1,3 +1,4 @@
+import { signIn } from "./auth-helper";
 import { expect, test } from "@playwright/test";
 
 for (const [label, width, height] of [["desktop", 1440, 900], ["mobile", 390, 844]] as const) {
@@ -8,6 +9,7 @@ for (const [label, width, height] of [["desktop", 1440, 900], ["mobile", 390, 84
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/app/graph");
+    await signIn(page);
     const trigger = page.getByRole("combobox", { name: "Graph time window" });
     await trigger.focus();
     await page.keyboard.press("Enter");

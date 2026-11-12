@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 import pytest
 
 from botkernel.lang_agents import MockReasoner, Proposal
@@ -78,7 +79,7 @@ def test_lost_gateway_response_replays_same_checkpointed_proposal(tmp_path,monke
         c.execute(text('UPDATE quota SET capacity=1000 WHERE id=1'))
         resource=dict(c.execute(text("SELECT * FROM resources WHERE id='service-a'")).mappings().one())
     role='cost' if resource['capacity']>=12 else 'performance'
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     class Session:
         def __init__(self,*args,**kwargs): pass
         def __enter__(self): return self
@@ -575,7 +576,7 @@ def test_bedrock_decision_is_checkpointed_before_ambiguous_gateway_retry(tmp_pat
         c.execute(text("UPDATE resources SET capacity=6 WHERE id='service-a'"))
         c.execute(text("UPDATE external_resources SET capacity=6 WHERE id='service-a'"))
         resource=c.execute(text("SELECT capacity,version FROM resources WHERE id='service-a'")).one()
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     class HttpClient:
         def __init__(self,*args,**kwargs): pass
         def __enter__(self): return self
@@ -826,7 +827,7 @@ def test_enabled_ollama_proposal_still_uses_real_gateway_and_is_bounded(tmp_path
         c.execute(text('INSERT INTO resources(id,capacity,version) VALUES(:id,4,0)'),{'id':resource})
         c.execute(text('INSERT INTO external_resources(id,capacity) VALUES(:id,4)'),{'id':resource})
         c.execute(text('UPDATE quota SET capacity=100000 WHERE id=1'))
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     assert client.post('/agents/langgraph-performance').status_code==200
     state={'agent':'langgraph-performance','run_id':'ollama-enabled-cycle','telemetry':{
         'id':resource,'capacity':4,'version':0,'recent_effects':[],'controller_hold':False,
@@ -948,7 +949,7 @@ def test_bedrock_agent_uses_local_simulator_telemetry_and_persists_advisory_only
     monkeypatch.setenv('AWS_DEPLOY_ALLOWED','false')
     monkeypatch.setenv('BEDROCK_ENABLED','false')
     monkeypatch.setenv('BEDROCK_SPEND_AUTHORIZED','false')
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     resource=f'bedrock-local-{role}'
     monkeypatch.setenv('BOTKERNEL_AGENT_RESOURCE',resource)
     with engine.begin() as c:

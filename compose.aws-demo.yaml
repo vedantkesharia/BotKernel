@@ -154,6 +154,13 @@ services:
     environment:
       <<: *app-environment
       OTEL_SERVICE_NAME: botkernel-api
+      BOTKERNEL_OPERATOR_TOKEN_FILE: /run/secrets/operator_token
+      BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
+      BOTKERNEL_METRICS_TOKEN: ${BOTKERNEL_METRICS_TOKEN:-}
+      INVESTIGATION_MAX_CONCURRENT: ${INVESTIGATION_MAX_CONCURRENT:-2}
+      INVESTIGATION_EXECUTION_TIMEOUT_SECONDS: ${INVESTIGATION_EXECUTION_TIMEOUT_SECONDS:-30}
+      INVESTIGATION_TERMINATION_GRACE_SECONDS: ${INVESTIGATION_TERMINATION_GRACE_SECONDS:-2}
+    secrets: [database_url, operator_token, agent_token]
     networks: [backend, egress]
     depends_on:
       init:
@@ -253,11 +260,13 @@ services:
     <<: *python-runtime
     environment:
       <<: *app-environment
+      BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
       AGENT_ROLE: cost
       AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
       AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
       BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/cost.sqlite
       OTEL_SERVICE_NAME: botkernel-cost-agent
+    secrets: [database_url, agent_token]
     networks: [backend, egress]
     volumes: [agent_checkpoints:/var/lib/botkernel/checkpoints]
     depends_on:
@@ -276,11 +285,13 @@ services:
     <<: *python-runtime
     environment:
       <<: *app-environment
+      BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
       AGENT_ROLE: performance
       AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
       AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
       BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/performance.sqlite
       OTEL_SERVICE_NAME: botkernel-performance-agent
+    secrets: [database_url, agent_token]
     networks: [backend, egress]
     volumes: [agent_checkpoints:/var/lib/botkernel/checkpoints]
     depends_on:
@@ -325,6 +336,7 @@ services:
     image: prom/prometheus:v3.2.1
     profiles: [observability]
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
+    secrets: [metrics_token]
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -401,6 +413,12 @@ secrets:
     file: ${BOTKERNEL_DATABASE_URL_FILE:-/etc/botkernel/secrets/database_url}
   postgres_password:
     file: ${BOTKERNEL_POSTGRES_PASSWORD_FILE:-/etc/botkernel/secrets/postgres_password}
+  operator_token:
+    file: ${BOTKERNEL_OPERATOR_TOKEN_FILE:-/etc/botkernel/secrets/operator_token}
+  agent_token:
+    file: ${BOTKERNEL_AGENT_TOKEN_FILE:-/etc/botkernel/secrets/agent_token}
+  metrics_token:
+    file: ${BOTKERNEL_METRICS_TOKEN_FILE:-/etc/botkernel/secrets/metrics_token}
 
 volumes:
   postgres_data:

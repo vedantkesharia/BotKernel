@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { operatorHeaders, signIn } from "./auth-helper";
 
 test("runs a backend-backed comparison and keeps the lab usable on mobile", async ({ page }) => {
   const browserErrors: string[] = [];
@@ -9,6 +10,7 @@ test("runs a backend-backed comparison and keeps the lab usable on mobile", asyn
 
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto("/experiments");
+  await signIn(page);
   await expect(page.getByRole("heading", { name: "Experiment lab" })).toBeVisible();
   await page.getByLabel("Random seeds").fill("101");
   const creation = page.waitForResponse(
@@ -22,10 +24,11 @@ test("runs a backend-backed comparison and keeps the lab usable on mobile", asyn
   await expect(results.getByRole("heading", { name: "Cost / performance oscillation" })).toBeVisible();
   await expect(results.locator("tbody tr")).toHaveCount(3);
   await expect(results.getByRole("application")).toBeVisible();
-  await expect(results.getByRole("link", { name: "report.md" })).toBeVisible();
+  await expect(results.getByRole("button", { name: "report.md" })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
+  await signIn(page);
   await expect(page.getByRole("heading", { name: "Experiment lab" })).toBeVisible();
   await expect(page.locator(".experiment-results")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".mobile-strategy")).toHaveCount(3);
@@ -42,6 +45,7 @@ test("shows backend errors and rejects duplicate seeds before submission", async
     }
   });
   await page.goto("/experiments");
+  await signIn(page);
   await expect(page.getByRole("alert").filter({ hasText: "Unable to load saved experiments" })).toBeVisible();
 
   await page.getByLabel("Random seeds").fill("17,17");
@@ -57,10 +61,10 @@ test("shows backend errors and rejects duplicate seeds before submission", async
 test("inspects committed graph relationships and incident evidence", async ({ page, request }) => {
   const api = "http://127.0.0.1:5187/api";
   const agent = `graph-e2e-${crypto.randomUUID()}`;
-  const registered = await request.post(`${api}/agents/${agent}`);
+  const registered = await request.post(`${api}/agents/${agent}`, { headers: operatorHeaders() });
   expect(registered.ok()).toBeTruthy();
 
-  const resourcesResponse = await request.get(`${api}/resources`);
+  const resourcesResponse = await request.get(`${api}/resources`, { headers: operatorHeaders() });
   expect(resourcesResponse.ok()).toBeTruthy();
   const resources = await resourcesResponse.json() as { id: string; capacity: number; version: number }[];
   const resource = resources.find((item) => item.id === "service-b") ?? resources[0];
@@ -68,11 +72,12 @@ test("inspects committed graph relationships and incident evidence", async ({ pa
 
   let latestActionId = "";
   for (const delta of [1, -1]) {
-    const currentResponse = await request.get(`${api}/resources`);
+    const currentResponse = await request.get(`${api}/resources`, { headers: operatorHeaders() });
     const currentResources = await currentResponse.json() as { id: string; capacity: number; version: number }[];
     const current = currentResources.find((item) => item.id === resource.id);
     if (!current) throw new Error(`Simulator resource ${resource.id} disappeared.`);
     const submitted = await request.post(`${api}/actions`, {
+      headers: operatorHeaders(),
       data: {
         agent,
         workflow: "dashboard-e2e",
@@ -86,13 +91,14 @@ test("inspects committed graph relationships and incident evidence", async ({ pa
     const action = await submitted.json() as { id: string };
     latestActionId = action.id;
     await expect.poll(async () => {
-      const actionsResponse = await request.get(`${api}/actions`);
+      const actionsResponse = await request.get(`${api}/actions`, { headers: operatorHeaders() });
       const actions = await actionsResponse.json() as { id: string; state: string }[];
       return actions.find((item) => item.id === action.id)?.state;
     }, { timeout: 20_000 }).toBe("SUCCEEDED");
   }
 
   await page.goto("/graph");
+  await signIn(page);
   const nodes = page.locator(".react-flow__node");
   await expect(nodes.first()).toBeVisible();
   await expect(page.locator(".react-flow__edge").first()).toBeVisible();
@@ -114,6 +120,7 @@ test("inspects committed graph relationships and incident evidence", async ({ pa
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
 
   await page.goto(`/graph?${new URLSearchParams({ action: latestActionId, resource: resource.id })}`);
+  await signIn(page);
   await expect(page.getByText(`action:${latestActionId}`, { exact: true })).toBeVisible();
   await page.getByLabel("Filter graph nodes").fill("no-matching-resource");
   await expect(page.getByText(`action:${latestActionId}`, { exact: true })).toBeVisible();
@@ -122,6 +129,7 @@ test("inspects committed graph relationships and incident evidence", async ({ pa
   await expect(page.getByText(`action:${latestActionId}`, { exact: true })).toBeVisible();
 
   await page.goto("/incidents");
+  await signIn(page);
   const incident = page.locator(".incident-detail").first();
   await expect(incident).toBeVisible();
   await expect(incident.locator(".timeline")).toContainText("sustained recovery verified");
@@ -132,6 +140,7 @@ test("inspects committed graph relationships and incident evidence", async ({ pa
 test("mobile navigation opens the agent workspace", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/graph");
+  await signIn(page);
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("complementary", { name: "Primary navigation" })).toBeVisible();
   await page.getByRole("link", { name: "Agent fleet" }).click();
@@ -147,6 +156,7 @@ test("mobile navigation opens the agent workspace", async ({ page }) => {
 test("mobile navigation traps focus and closes with Escape", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/app");
+  await signIn(page);
   const trigger = page.getByRole("button", { name: "Open navigation" });
   await trigger.focus();
   await page.keyboard.press("Enter");

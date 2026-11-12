@@ -6,6 +6,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 if ($Concurrency -gt $Actions) { throw "Concurrency cannot exceed action count." }
+if (-not $env:BOTKERNEL_OPERATOR_TOKEN) { throw "Set BOTKERNEL_OPERATOR_TOKEN to a strong random credential before starting." }
 $root = Split-Path -Parent $PSScriptRoot
 $compose = Join-Path $root "benchmarks\compose.real-system.yaml"
 $project = "bkbench-" + [guid]::NewGuid().ToString("N").Substring(0, 12)

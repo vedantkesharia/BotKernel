@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 import csv
 import json
 
@@ -74,7 +75,7 @@ def test_experiment_api_runs_bounded_comparison_and_serves_saved_artifacts(tmp_p
     import botkernel.api as api
 
     monkeypatch.setattr(api, "EXPERIMENT_RESULTS", tmp_path)
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     response = client.post(
         "/experiments",
         json={"scenario": "healthy_scaling", "seeds": [17, 23], "duration": 120},
@@ -138,7 +139,7 @@ def test_legacy_experiment_history_avoids_loading_raw_ticks(tmp_path, monkeypatc
     )
     (directory / "raw.json").write_text("large tick payload must not be loaded", encoding="utf-8")
 
-    response = TestClient(app).get("/experiments")
+    response = TestClient(app, headers=operator_headers()).get("/experiments")
 
     assert response.status_code == 200
     [history] = response.json()

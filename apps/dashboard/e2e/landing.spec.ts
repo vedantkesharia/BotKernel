@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signIn } from "./auth-helper";
 
 test("public product landing stays independent of the operator API at all review sizes", async ({ page }) => {
   const apiRequests: string[] = [];
@@ -38,6 +39,7 @@ test("public product landing stays independent of the operator API at all review
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("link", { name: /Launch console/i }).first().click();
   await expect(page).toHaveURL(/\/app$/);
+  await signIn(page);
   await expect(page.locator(".topbar .pill")).toHaveText("Connected");
   await expect(page.getByRole("heading", { name: "Mission control" })).toBeVisible();
 });

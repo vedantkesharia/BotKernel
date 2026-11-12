@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import TypedDict, Literal, Any
 from pathlib import Path
 import httpx
+from botkernel.security import agent_headers
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.memory import MemorySaver
@@ -348,7 +349,7 @@ def build_agent(role:Literal['cost','performance'], api_url:str|None=None, reaso
     reasoner=reasoner or configured_reasoner()
     def observe(state):
         with traced_span('botkernel.agent.observe',{'agent.role':role}):
-            with httpx.Client(base_url=api_url,timeout=5) as c:
+            with httpx.Client(base_url=api_url,timeout=5,headers=agent_headers()) as c:
                 c.post('/agents/langgraph-'+role).raise_for_status()
                 resource_id=os.getenv('BOTKERNEL_AGENT_RESOURCE','service-a').strip()
                 if not resource_id or len(resource_id)>100:
@@ -439,7 +440,7 @@ def build_agent(role:Literal['cost','performance'], api_url:str|None=None, reaso
             return {'outcome':{'decision':'review_required','reason':'proposal requires review; outcome may be unknown','provider':provider}}
         with traced_span('botkernel.agent.gateway_submit',{'agent.role':role}):
             try:
-                response=httpx.post(api_url.rstrip('/')+'/actions',json=body,timeout=8)
+                response=httpx.post(api_url.rstrip('/')+'/actions',json=body,timeout=8,headers=agent_headers())
             except httpx.TransportError:
                 schedule_retry(path,body['idempotency_key'],'transport')
                 raise
@@ -508,7 +509,7 @@ def _run_owned(role, api_url=None, reasoner=None, run_id=None, ownership_token=N
                 return {'agent':'langgraph-'+role,'run_id':key,'outcome':{'decision':'pending','action_id':previous.get('action_id'),'reason':'reconciliation backoff'}}
             category=None; immediate_review=False
             try:
-                response=httpx.get(url.rstrip('/')+'/agents/langgraph-'+role+'/action-by-key',params={'key':key},timeout=5)
+                response=httpx.get(url.rstrip('/')+'/agents/langgraph-'+role+'/action-by-key',params={'key':key},timeout=5,headers=agent_headers())
                 if response.status_code != 200:
                     category=('authorization' if response.status_code in (401,403) else 'action_not_found' if response.status_code==404 else 'gateway_unavailable')
                     immediate_review=response.status_code in (401,403)

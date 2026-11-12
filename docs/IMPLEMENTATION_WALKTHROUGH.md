@@ -29,7 +29,7 @@ BotKernel coordinates agents that can individually make sensible decisions but j
 | `/app/incidents` | `incidents.tsx`, `InvestigationReports.tsx` | Incident list, evidence/lifecycle, acknowledge/resolve, and investigation POST/list |
 | `/app/experiments` | `experiments.tsx` | `/experiments` create/list, `/experiments/{id}` and artifact downloads for simulated workloads |
 
-`botkernel/api.py` implements these routes plus `/telemetry`, `/agents/{agent}`, `/agents/{agent}/decision`, `/incidents/{id}/investigations` and `/investigations/{id}`. The operator endpoints are **unauthenticated**: use only a private local boundary.
+`botkernel/api.py` implements these routes plus `/telemetry`, `/agents/{agent}`, `/agents/{agent}/decision`, `/incidents/{id}/investigations` and `/investigations/{id}`. Operator routes require an externally configured bearer credential; keep the API on a private boundary.
 
 ## Action lifecycle and consistency
 
@@ -45,7 +45,7 @@ The graph is derived from committed effects. `effect_relationships.py` identifie
 
 ## Investigation and optional AI
 
-`investigator.py` executes `load_incident -> retrieve_effects -> correlate -> report -> ai_assist`. Deterministic evidence retrieval precedes optional model analysis. Findings distinguish facts and deterministic inferences from hypotheses, and evidence references are validated. `investigation_service.py` manages durable idempotency, claims and fencing in PostgreSQL. Session advisory slots and query timeouts bound parts of the work, but there is currently **no hard graph cancellation** when computation remains alive.
+`investigator.py` executes `load_incident -> retrieve_effects -> correlate -> report -> ai_assist`. Deterministic evidence retrieval precedes optional model analysis. Findings distinguish facts and deterministic inferences from hypotheses, and evidence references are validated. `investigation_service.py` manages durable idempotency, claims and lease fencing in PostgreSQL. `investigation_process.py` supervises a fresh `investigation_worker.py` process with its own database connections. The default 30-second execution deadline (1-45 seconds) is followed by a default two-second termination grace (0.1-5 seconds); Linux uses a process group, SIGTERM and SIGKILL, and Windows uses a kill-on-close Job Object. Supervisor death also stops the worker on supported platforms. Evidence queries retain their five-second timeout. Execution timeout finalizes the fenced report as `FAILED/execution_timeout` when PostgreSQL is available; replaying the same key returns it without relaunching. The default two advisory slots are configurable from 1 to 16, but a database partition may release a slot before computation stops, so no strict distributed concurrency guarantee is claimed. Timeout of a Bedrock request is ambiguous and must not trigger an automatic paid retry.
 
 `bedrock.py` implements optional Converse requests with configuration gates, schema validation and returned usage/provenance where available. `bedrock_acceptance.py` prepares the bounded three-case workflow. Live inference remains unverified; model actions and Bedrock spend are disabled by default. Redis stores advisory heartbeat/decision and inference-budget state; it is neither the ledger nor an AWS billing cap.
 
@@ -57,7 +57,7 @@ Compose is the validated local integration path. `infra/terraform/` describes th
 
 ## Five-minute design discussion
 
-Explain the tradeoff between a simple serialized PostgreSQL quota lock and admission throughput; follow one action from atomic outbox to possible duplicate Kafka delivery; explain simulator receipts and why arbitrary external effects need reconciliation; show how the controller separates repeated reversals from confirmed causation; then trace a persisted incident into read-only evidence and a fenced report. Finish with the limits: single-host data services, advisory Redis budgets, no public authentication, no hard investigator cancellation, and unverified live Bedrock/Kubernetes acceptance.
+Explain the tradeoff between a simple serialized PostgreSQL quota lock and admission throughput; follow one action from atomic outbox to possible duplicate Kafka delivery; explain simulator receipts and why arbitrary external effects need reconciliation; show how the controller separates repeated reversals from confirmed causation; then trace a persisted incident into read-only evidence and a fenced report. Finish with the limits: single-host data services, advisory Redis budgets, private-only operator access, partition-sensitive advisory slots, and unverified live Bedrock/Kubernetes acceptance.
 
 ## Interview prompts
 

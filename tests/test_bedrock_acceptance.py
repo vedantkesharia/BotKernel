@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 import pytest
 
 from botkernel.bedrock_acceptance import main
@@ -92,7 +93,7 @@ def test_live_cli_accepts_all_case_arguments_before_configuration_gate(
 
 
 def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_actions(
-    tmp_path, monkeypatch, request
+    tmp_path, monkeypatch, request, in_process_investigator
 ):
     import httpx
     import os
@@ -300,7 +301,8 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
             }
 
     monkeypatch.setattr("botkernel.bedrock.BedrockConverse", OfflineConverse)
-    client = TestClient(app)
+    in_process_investigator()
+    client = TestClient(app, headers=operator_headers())
 
     class LocalApiSession:
         def __init__(self, *args, **kwargs):

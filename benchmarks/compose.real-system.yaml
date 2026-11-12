@@ -55,6 +55,9 @@ services:
     image: redis:7-alpine
   api:
     <<: *app
+    environment:
+      <<: *env
+      BOTKERNEL_OPERATOR_TOKEN: ${BOTKERNEL_OPERATOR_TOKEN:-}
     depends_on:
       init:
         condition: service_completed_successfully
@@ -85,6 +88,7 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *env
+      BOTKERNEL_OPERATOR_TOKEN: ${BOTKERNEL_OPERATOR_TOKEN:-}
       BOTKERNEL_BENCHMARK_OWNED: "true"
     volumes:
       - ./results/real-system:/results

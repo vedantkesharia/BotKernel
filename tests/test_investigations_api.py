@@ -1,8 +1,112 @@
+from botkernel.security import operator_headers
 from concurrent.futures import ThreadPoolExecutor
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from botkernel.api import app
 from botkernel.core import engine
+
+
+def test_timeout_terminates_process_fences_replay_and_allows_next(monkeypatch, tmp_path):
+    import os
+    import time
+    import uuid
+
+    resource = "invest-timeout-" + uuid.uuid4().hex[:12]
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO resources(id,capacity,version) VALUES(:r,4,0)"), {"r": resource})
+        incident = c.execute(text("INSERT INTO incidents(resource,score,evidence) VALUES(:r,0.8,CAST('{}' AS jsonb)) RETURNING id"), {"r": resource}).scalar_one()
+        before = c.execute(text("SELECT row_to_json(i)::text FROM incidents i WHERE id=:id"), {"id": incident}).scalar_one()
+    marker = tmp_path / "running"
+    starts = tmp_path / "starts"
+    (tmp_path / "sitecustomize.py").write_text(
+        "import time\nimport botkernel.investigator as investigator\n"
+        "class HangingGraph:\n"
+        " def invoke(self, state):\n"
+        f"  open({str(starts)!r},'a').write('x')\n"
+        "  n=0; last=0\n"
+        "  while True:\n"
+        "   n+=1\n"
+        "   if time.monotonic()-last>.05:\n"
+        f"    open({str(marker)!r},'w').write(str(n)); last=time.monotonic()\n"
+        "investigator.investigation_graph=HangingGraph()\n",
+        encoding="utf-8",
+    )
+    original_path = os.environ.get("PYTHONPATH", "")
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path) + os.pathsep + original_path)
+    monkeypatch.setenv("INVESTIGATION_EXECUTION_TIMEOUT_SECONDS", "5")
+    client = TestClient(app, headers=operator_headers())
+    body = {"idempotency_key": "timeout-key", "provider": "bedrock"}
+    first = client.post(f"/incidents/{incident}/investigations", json=body)
+    assert first.status_code == 200
+    assert first.json()["status"] == "FAILED"
+    assert first.json()["error_category"] == "execution_timeout"
+    assert marker.exists()
+    stopped = marker.read_text()
+    time.sleep(.25)
+    assert marker.read_text() == stopped
+    replay = client.post(f"/incidents/{incident}/investigations", json=body)
+    assert replay.json()["id"] == first.json()["id"]
+    assert replay.json()["status"] == "FAILED"
+    assert starts.read_text() == "x"
+    monkeypatch.setenv("PYTHONPATH", original_path)
+    monkeypatch.setenv("INVESTIGATION_EXECUTION_TIMEOUT_SECONDS", "30")
+    next_report = client.post(f"/incidents/{incident}/investigations", json={"idempotency_key": "next-key"})
+    assert next_report.status_code == 200
+    assert next_report.json()["status"] == "INSUFFICIENT_EVIDENCE"
+    assert client.get("/investigations/" + first.json()["id"]).json()["status"] == "FAILED"
+    with engine.connect() as c:
+        assert c.execute(text("SELECT row_to_json(i)::text FROM incidents i WHERE id=:id"), {"id": incident}).scalar_one() == before
+        assert c.execute(text("SELECT count(*) FROM effects WHERE resource=:r"), {"r": resource}).scalar_one() == 0
+        assert c.execute(text("SELECT count(*) FROM actions WHERE resource=:r"), {"r": resource}).scalar_one() == 0
+
+
+def test_process_workers_respect_slots_and_duplicate_requests(monkeypatch, tmp_path):
+    import os
+    import time
+    import uuid
+
+    ids = []
+    with engine.begin() as c:
+        for _ in range(3):
+            resource = "invest-process-" + uuid.uuid4().hex[:12]
+            c.execute(text("INSERT INTO resources(id,capacity,version) VALUES(:r,4,0)"), {"r": resource})
+            ids.append(c.execute(text("INSERT INTO incidents(resource,score,evidence) VALUES(:r,0.8,CAST('{}' AS jsonb)) RETURNING id"), {"r": resource}).scalar_one())
+    release = tmp_path / "release"
+    (tmp_path / "sitecustomize.py").write_text(
+        "import pathlib,time\nimport botkernel.investigator as investigator\n"
+        "real=investigator.investigation_graph\n"
+        "class Barrier:\n"
+        " def invoke(self, state):\n"
+        f"  root=pathlib.Path({str(tmp_path)!r})\n"
+        "  (root / ('started-' + str(state['incident_id']))).touch()\n"
+        "  while not (root / 'release').exists(): time.sleep(.05)\n"
+        "  return real.invoke(state)\n"
+        "investigator.investigation_graph=Barrier()\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    monkeypatch.setenv("INVESTIGATION_MAX_CONCURRENT", "2")
+    monkeypatch.setenv("INVESTIGATION_EXECUTION_TIMEOUT_SECONDS", "20")
+    client = TestClient(app, headers=operator_headers())
+    def submit(index):
+        return client.post(f"/incidents/{ids[index]}/investigations", json={"idempotency_key": f"key-{index}"})
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(submit, index) for index in (0, 1)]
+        try:
+            until = time.monotonic() + 15
+            while time.monotonic() < until and not all((tmp_path / f"started-{ident}").exists() for ident in ids[:2]):
+                time.sleep(.05)
+            assert all((tmp_path / f"started-{ident}").exists() for ident in ids[:2])
+            duplicate = submit(0)
+            assert duplicate.status_code == 200 and duplicate.json()["status"] == "RUNNING"
+            assert submit(2).status_code == 503
+        finally:
+            release.touch()
+        completed = [future.result(timeout=25) for future in futures]
+    assert all(response.status_code == 200 and response.json()["status"] == "INSUFFICIENT_EVIDENCE" for response in completed)
+    assert completed[0].json()["id"] == duplicate.json()["id"]
+    assert submit(2).json()["status"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_persistence_idempotency_concurrency_and_readonly():
@@ -11,7 +115,7 @@ def test_persistence_idempotency_concurrency_and_readonly():
         c.execute(text("INSERT INTO external_resources VALUES('invest-api',4)"))
         incident=c.execute(text("INSERT INTO incidents(resource,score,evidence) VALUES('invest-api',0.8,CAST('{}' AS jsonb)) RETURNING id")).scalar_one()
         before=c.execute(text("SELECT * FROM incidents WHERE id=:id"),{'id':incident}).one()
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     def post(): return client.post(f'/incidents/{incident}/investigations',json={'idempotency_key':'same-key'})
     with ThreadPoolExecutor(max_workers=2) as pool:
         responses=list(pool.map(lambda _:post(),range(2)))
@@ -38,7 +142,7 @@ def test_expired_lease_is_failed_without_rerunning():
         incident=c.execute(text("INSERT INTO incidents(resource,score,evidence) VALUES('invest-expired',0.8,CAST('{}' AS jsonb)) RETURNING id")).scalar_one()
         ident=str(uuid.uuid4())
         c.execute(text("INSERT INTO investigation_reports(id,incident_id,idempotency_key,request_fingerprint,status,provider,lease_token,lease_until) VALUES(:id,:incident,:key,:fingerprint,'RUNNING','deterministic_mock',:token,now()-interval '1 second')"),dict(id=ident,incident=incident,key=key,fingerprint=fingerprint,token=str(uuid.uuid4())))
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     r=client.post(f'/incidents/{incident}/investigations',json={'idempotency_key':key})
     assert r.status_code==200
     assert r.json()['id']==ident
@@ -66,7 +170,7 @@ def test_independent_process_slots_return_busy_and_release():
     owner=subprocess.Popen([sys.executable,'-c',code],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True,env=os.environ.copy())
     try:
         assert owner.stdout.readline().strip()=='ready'
-        client=TestClient(app)
+        client=TestClient(app, headers=operator_headers())
         busy=client.post(f'/incidents/{incident}/investigations',json={'idempotency_key':'slots-busy'})
         assert busy.status_code==503
         with engine.connect() as c: assert c.execute(text('SELECT count(*) FROM investigation_reports WHERE incident_id=:id'),{'id':incident}).scalar_one()==0
@@ -95,10 +199,12 @@ class NodeBarrier(BaseCallbackHandler):
   if name=='load_incident':
    print('READY',flush=True)
    sys.stdin.readline()
-class Barrier:
- def invoke(self,state):
-  return real.invoke(state,config={'callbacks':[NodeBarrier()]})
-service.investigation_graph=Barrier()
+def execute(incident_id,provider,run_id,deadline,grace):
+ state={'incident_id':incident_id,'provider':provider,'run_id':run_id}
+ report=real.invoke(state,config={'callbacks':[NodeBarrier()]})['report']
+ report['investigation_id']=run_id
+ return {'report':report}
+service.execute=execute
 r=service.start(int(sys.argv[1]),sys.argv[2],'deterministic_mock')
 print('DONE '+json.dumps({'id':str(r['id']),'status':r['status']}),flush=True)
 """
@@ -108,7 +214,7 @@ print('DONE '+json.dumps({'id':str(r['id']),'status':r['status']}),flush=True)
         return proc.stdout.readline().strip()
     try:
         assert [line(p) for p in processes]==['READY','READY']
-        client=TestClient(app)
+        client=TestClient(app, headers=operator_headers())
         duplicate=client.post(f'/incidents/{ids[0]}/investigations',json={'idempotency_key':'key-0'})
         assert duplicate.status_code==200 and duplicate.json()['status']=='RUNNING'
         third=client.post(f'/incidents/{ids[2]}/investigations',json={'idempotency_key':'key-2'})
@@ -146,9 +252,12 @@ class NodeBarrier(BaseCallbackHandler):
  def on_chain_start(self,serialized,inputs,*,name=None,**kwargs):
   if name=='load_incident':
    print('READY',flush=True); sys.stdin.readline()
-class Barrier:
- def invoke(self,state): return real.invoke(state,config={'callbacks':[NodeBarrier()]})
-service.investigation_graph=Barrier()
+def execute(incident_id,provider,run_id,deadline,grace):
+ state={'incident_id':incident_id,'provider':provider,'run_id':run_id}
+ report=real.invoke(state,config={'callbacks':[NodeBarrier()]})['report']
+ report['investigation_id']=run_id
+ return {'report':report}
+service.execute=execute
 r=service.start(int(sys.argv[1]),'lost-session','deterministic_mock')
 print('DONE '+json.dumps({'id':str(r['id']),'status':r['status']}),flush=True)
 """
@@ -159,7 +268,7 @@ print('DONE '+json.dumps({'id':str(r['id']),'status':r['status']}),flush=True)
             pid=c.execute(text("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=781239 AND database=(SELECT oid FROM pg_database WHERE datname=current_database()) AND granted")).scalar_one()
             assert c.execute(text('SELECT pg_terminate_backend(:pid)'),{'pid':pid}).scalar_one()
             c.execute(text("UPDATE investigation_reports SET lease_until=now()-interval '1 second' WHERE incident_id=:id"),{'id':ids[0]})
-        client=TestClient(app)
+        client=TestClient(app, headers=operator_headers())
         old=client.post(f'/incidents/{ids[0]}/investigations',json={'idempotency_key':'lost-session'})
         assert old.json()['status']=='FAILED' and old.json()['error_category']=='lease_expired'
         newer=client.post(f'/incidents/{ids[1]}/investigations',json={'idempotency_key':'other'})
@@ -174,7 +283,7 @@ print('DONE '+json.dumps({'id':str(r['id']),'status':r['status']}),flush=True)
         if proc.poll() is None: proc.terminate();proc.wait(timeout=10)
 
 
-def test_bedrock_investigation_mock_uses_controller_evidence_and_persists_readonly_report(monkeypatch):
+def test_bedrock_investigation_mock_uses_controller_evidence_and_persists_readonly_report(monkeypatch, in_process_investigator):
     import uuid
     from botkernel.api import Action, app
     from botkernel.bedrock import InvestigationAnalysis
@@ -243,7 +352,8 @@ def test_bedrock_investigation_mock_uses_controller_evidence_and_persists_readon
 
     fake=MockConverse()
     monkeypatch.setattr('botkernel.bedrock.BedrockConverse',lambda:fake)
-    client=TestClient(app)
+    in_process_investigator()
+    client=TestClient(app, headers=operator_headers())
     request={'idempotency_key':f'offline-bedrock-report-{uuid.uuid4()}','provider':'bedrock'}
     response=client.post(f'/incidents/{incident}/investigations',json=request)
     assert response.status_code==200,response.text

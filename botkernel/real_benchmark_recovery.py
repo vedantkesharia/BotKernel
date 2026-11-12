@@ -12,6 +12,7 @@ from confluent_kafka import Producer
 from sqlalchemy import text
 
 from botkernel.core import engine
+from botkernel.security import operator_headers
 
 
 def snapshot(action_id, resource):
@@ -45,7 +46,7 @@ def run():
                 [sys.executable, "-m", "botkernel.worker"],
                 env={**environment, "CRASH_AFTER_EFFECT": "true"}, stdout=crash_log, stderr=crash_log,
             )
-            with httpx.Client(base_url="http://api:8000", timeout=10) as client:
+            with httpx.Client(base_url="http://api:8000", timeout=10, headers=operator_headers()) as client:
                 response = client.post("/actions", json={
                     "agent": name, "workflow": "benchmark-recovery",
                     "idempotency_key": run_id, "resource": name,

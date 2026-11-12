@@ -2,9 +2,10 @@ import os
 import time
 import uuid
 import httpx
+from botkernel.security import agent_headers
 
 name = os.getenv("AGENT_NAME","cost")
-with httpx.Client(base_url="http://api:8000",timeout=10) as client:
+with httpx.Client(base_url="http://api:8000",timeout=10,headers=agent_headers()) as client:
     for tick in range(60):
         client.post("/agents/"+name).raise_for_status()
         r = client.get("/telemetry").json()[0]

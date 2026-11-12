@@ -3,6 +3,7 @@ import hashlib, json, uuid, os
 from sqlalchemy import text
 from botkernel.core import engine
 from botkernel.investigator import Investigation, investigation_graph
+from botkernel.investigation_process import execute, execution_limits, InvestigationTimeout
 
 class MissingIncident(Exception): pass
 class Conflict(Exception): pass
@@ -10,6 +11,7 @@ class Busy(Exception): pass
 
 
 def start(incident_id, key, provider):
+    deadline, grace = execution_limits()
     fingerprint=hashlib.sha256(json.dumps({'provider':provider},sort_keys=True).encode()).hexdigest()
     token=str(uuid.uuid4()); report_id=str(uuid.uuid4())
     slot_connection=engine.connect()
@@ -35,8 +37,11 @@ def start(incident_id, key, provider):
                 slot=index
                 break
         if slot is None: raise Busy()
-      payload=investigation_graph.invoke({'incident_id':incident_id,'provider':provider,'run_id':report_id})['report']
-      payload['investigation_id']=report_id
+      result=execute(incident_id,provider,report_id,deadline,grace)
+      if 'error_category' in result:
+          from botkernel.bedrock import BedrockProviderError
+          raise BedrockProviderError(result['error_category'])
+      payload=result['report']
       payload=Investigation.model_validate(payload).model_dump(mode='json')
       encoded=json.dumps(payload,ensure_ascii=False)
       if len(encoded.encode('utf-8'))>200000: raise ValueError('report too large')
@@ -47,7 +52,8 @@ def start(incident_id, key, provider):
     except Exception as error:
         if slot is None: raise
         from botkernel.bedrock import BedrockProviderError
-        error_category=error.category if isinstance(error,BedrockProviderError) else 'execution_error'
+        error_category=('execution_timeout' if isinstance(error,InvestigationTimeout)
+                        else error.category if isinstance(error,BedrockProviderError) else 'execution_error')
         with engine.begin() as c:
             c.execute(text("UPDATE investigation_reports SET status='FAILED',error_category=:category,completed_at=now(),lease_token=NULL,lease_until=NULL WHERE id=:id AND lease_token=:token AND status='RUNNING'"),dict(id=report_id,token=token,category=error_category))
     finally:

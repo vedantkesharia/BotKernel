@@ -1,7 +1,9 @@
+import { signIn } from "./auth-helper";
 import { expect, test } from "@playwright/test";
 
 test("fleet filters real registered identities without treating stale heartbeat as process failure", async ({ page }) => {
   await page.goto("/app/agents");
+  await signIn(page);
   await expect(page.getByRole("heading", { name: "Agent fleet" })).toBeVisible();
   await expect(page.locator(".fleet-summary")).toBeVisible();
   await expect(page.locator("footer")).toContainText("LOCAL SIMULATION");

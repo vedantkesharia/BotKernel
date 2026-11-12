@@ -115,7 +115,7 @@ LangGraph Cost and Performance agents submit proposals through the FastAPI gatew
 | Agents | Independent LangGraph Cost and Performance workflows | Deterministic providers are default; model proposals remain advisory when action execution is disabled |
 | Stability | Committed-effect graph, directional reversal evidence, selective holds, recovery verification and recurrence handling | Deterministic controller; evaluated in simulation, not production-scale proof |
 | Investigation | Evidence retrieval, citation validation, persisted reports and idempotent request handling | Deterministic by default; live Bedrock inference unverified |
-| Dashboard | Landing, Mission Control, Agent Fleet, Effect Graph, Investigations, Experiment Lab | Operator API is unauthenticated; keep private/loopback |
+| Dashboard | Landing, Mission Control, Agent Fleet, Effect Graph, Investigations, Experiment Lab | Single-operator bearer authentication; keep private/loopback |
 | Observability | Prometheus/Grafana and OpenTelemetry/Jaeger integrations | See [observability notes](docs/OBSERVABILITY.md) for scope |
 | Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | Historical AWS state is not a current-state assertion; Kubernetes runtime is unverified |
 
@@ -147,9 +147,13 @@ PowerShell (from repository root):
 
 ```powershell
 $env:BOTKERNEL_API_PORT = '18003'
+$env:BOTKERNEL_OPERATOR_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
+$env:BOTKERNEL_AGENT_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
 docker compose -p botkernel-local up --build -d postgres redis kafka init api publisher worker recovery controller
 Invoke-RestMethod http://127.0.0.1:18003/ready
 ```
+
+Keep both generated credentials private and retain them for the lifetime of the stack. The gateway checks for at least 43 printable ASCII characters but cannot verify randomness; generate each token independently using a cryptographically secure generator. To enter the operator credential in the console, copy it securely from the first terminal, for example with `Set-Clipboard -Value $env:BOTKERNEL_OPERATOR_TOKEN`, and clear the clipboard afterward. These PowerShell variables are process-local; use an ignored `.env` or another secure secret source for persistence. Regenerating them requires recreating the API and agent containers with the same updated values.
 
 Then in another terminal:
 
@@ -181,10 +185,13 @@ Local Docker Compose is the supported evaluation path. Terraform and deployment 
 - `AI_ACTION_EXECUTION_ENABLED=false`, `BEDROCK_ENABLED=false`, and spend authorization is disabled by default.
 - PostgreSQL is authoritative; Redis is advisory; Kafka is at-least-once.
 - Simulator idempotency does not establish exactly-once behavior for arbitrary external side effects.
-- The operator API/dashboard has no authentication and must not be exposed publicly.
+- Operational API routes require a configured high-entropy operator bearer token; agents use a separate restricted token. `/health` and `/ready` are public. Missing or invalid authentication configuration fails closed.
+- The API accepts `BOTKERNEL_OPERATOR_TOKEN` and optional `BOTKERNEL_AGENT_TOKEN`, or their respective `_FILE` alternatives; do not set both forms for one credential. Restrict secret-file permissions. The private AWS Compose template mounts files only into the services that need them.
+- The console retains its token only in memory; reload requires sign-in. Tokens have no automatic expiry: sign-out clears local state, not the server credential, so rotate the token to revoke it. The shared agent token is not per-agent identity and permits simulator action submission. Use TLS on any non-loopback connection and keep the API private; authentication is not a public-exposure boundary. Prometheus uses a separate read-only metrics token supplied through a secret file; see [observability setup](docs/OBSERVABILITY.md).
+- The Helm chart references externally created operator and agent Secrets; its metrics Secret is optional. Helm templates were validated but not deployed. AWS-demo changes are not deployed or runtime-validated.
 - Local simulations are not proof of multi-host production reliability.
 - Live Bedrock invocation and current AWS deployment state are unverified.
-- Investigator cancellation and backup/restore have documented operational limitations.
+- Investigations run in supervised processes with a bounded timeout; advisory slots do not guarantee a distributed concurrency cap across database partitions. Backup/restore remains unverified.
 
 ## Project documentation
 

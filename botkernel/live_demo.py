@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
+from botkernel.security import operator_headers
 
 
 API_URL = os.getenv("BOTKERNEL_API_URL", "http://api:8000")
@@ -180,7 +181,7 @@ def _investigate_incident(
 def run() -> dict:
     deadline = time.monotonic() + TIMEOUT_SECONDS
     run_id = os.getenv("DEMO_RUN_ID", str(uuid.uuid4()))
-    with httpx.Client(base_url=API_URL, timeout=5) as client:
+    with httpx.Client(base_url=API_URL, timeout=5, headers=operator_headers()) as client:
         while time.monotonic() < deadline:
             try:
                 if client.get("/ready").status_code == 200:

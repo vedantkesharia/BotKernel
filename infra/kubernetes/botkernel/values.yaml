@@ -5,6 +5,14 @@ imagePullPolicy: IfNotPresent
 
 # Create this Secret out of band with keys postgres-password and database-url.
 databaseSecret: botkernel-database
+# Existing Secrets, created out of band. Metrics Secret is optional.
+operatorSecret: botkernel-operator
+agentSecret: botkernel-agent
+metricsSecret: botkernel-metrics
+investigation:
+  maxConcurrent: 2
+  executionTimeoutSeconds: 30
+  terminationGraceSeconds: 2
 
 storage:
   postgres: 2Gi

@@ -4,7 +4,9 @@
 
 Prometheus, Grafana, the OpenTelemetry Collector and Jaeger are optional Compose-profile services. HTTP host ports bind to loopback; the Collector accepts OTLP only on the private Compose network. The application does not depend on monitoring services for admission or execution. To enable span export, set the OTLP endpoint explicitly; the default is blank and tracing export is disabled.
 
-PowerShell from the repository root:
+Create independent operator, agent and metrics credentials using a cryptographically secure generator. Keep them private. For Prometheus, write the metrics token without a newline to a private, scraper-readable file outside the repository. The API receives the same token via `BOTKERNEL_METRICS_TOKEN`; Prometheus reads it through the Compose secret selected by `BOTKERNEL_METRICS_TOKEN_FILE`. The metrics token permits only `GET /metrics`; it cannot access operational data or mutate state. Restart the API with an updated token when rotating it, and update the secret file for Prometheus. TLS and a private network remain necessary outside loopback.
+
+PowerShell from the repository root, after choosing a private file path and creating the operator and agent variables as described in the README:
 
 ```powershell
 $env:BOTKERNEL_API_PORT='18029'
@@ -12,6 +14,9 @@ $env:BOTKERNEL_PROMETHEUS_PORT='19090'
 $env:BOTKERNEL_GRAFANA_PORT='13000'
 $env:BOTKERNEL_JAEGER_PORT='16686'
 $env:BOTKERNEL_OTEL_EXPORTER_OTLP_ENDPOINT='http://otel-collector:4318'
+$env:BOTKERNEL_METRICS_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
+$env:BOTKERNEL_METRICS_TOKEN_FILE = '<private-readable-token-file>'
+[IO.File]::WriteAllText($env:BOTKERNEL_METRICS_TOKEN_FILE, $env:BOTKERNEL_METRICS_TOKEN, [Text.UTF8Encoding]::new($false))
 docker compose -p botkernel-observe --profile observability --profile stability up --build -d postgres redis kafka init api publisher worker recovery controller prometheus grafana otel-collector jaeger
 Invoke-RestMethod http://127.0.0.1:18029/ready
 ```
@@ -53,7 +58,7 @@ Logs are process output, not a durable audit log. A log/span for an incident tra
 - `botkernel_database_scrape_success` distinguishes a successful snapshot from collection failure. On a database error, the collector emits this failure gauge only rather than fabricating zero-valued state.
 - Standard Prometheus process CPU/memory series describe each instrumented process, not the host or whole container.
 
-Only the API exports shared database totals, preventing worker-replica summation. The collector uses a dedicated one-connection pool with a 250ms pool-acquisition timeout, one-second PostgreSQL connect timeout, 500ms lock timeout and two-second statement timeout. It reads a read-only repeatable-read snapshot. The query still scans durable tables and should be profiled as retention grows; multi-process API metric aggregation and consumer lag are not implemented. Prometheus scrapes every five seconds with a four-second scrape timeout. `/metrics` is loopback-only in the supplied Compose stack and is not an authenticated public endpoint.
+Only the API exports shared database totals, preventing worker-replica summation. The collector uses a dedicated one-connection pool with a 250ms pool-acquisition timeout, one-second PostgreSQL connect timeout, 500ms lock timeout and two-second statement timeout. It reads a read-only repeatable-read snapshot. The query still scans durable tables and should be profiled as retention grows; multi-process API metric aggregation and consumer lag are not implemented. Prometheus scrapes every five seconds with a four-second scrape timeout. The gateway `/metrics` requires an authorized token and the supplied Compose API port binds to loopback; background exporter ports are available only inside the Compose network.
 
 ## Grafana
 
@@ -75,7 +80,7 @@ The complete PostgreSQL/Kafka integration suite passed twice after the final cod
 
 ## Limits and safety
 
-No measured PostgreSQL/Kafka latency, throughput, CPU or memory benchmark was run; simulation results are not backend performance evidence. No frontend files were changed and no React test/build was run. No consumer-lag metric, authenticated operator access, durable trace storage, multi-process API metrics aggregation or production retention policy is claimed. Collector failure can drop telemetry by design. Controller causality is represented by span links because controller evaluations are asynchronous.
+No measured PostgreSQL/Kafka latency, throughput, CPU or memory benchmark was run in that historical observability session; simulation results are not backend performance evidence. No consumer-lag metric, durable trace storage, multi-process API metrics aggregation or production retention policy is claimed. Collector failure can drop telemetry by design. Controller causality is represented by span links because controller evaluations are asynchronous.
 
 The `botkernel-observe` development database retains the task's demo data. Its total resource capacity was restored to 18 against a quota of 20 using a gateway-ledger scale-down; no existing rows or volumes were deleted. The isolated trace-verification stack and its newly created volumes remain running for inspection. Stop either project with `docker compose -p <project> down` and do not add `-v`.
 

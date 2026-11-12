@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 import json
 import logging
 
@@ -18,7 +19,7 @@ from opentelemetry import trace
 
 
 def test_scrapes_do_not_count_themselves():
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     before = list(REQUESTS.collect())[0].samples
     response = client.get("/metrics")
     assert response.status_code == 200
@@ -28,7 +29,7 @@ def test_scrapes_do_not_count_themselves():
 
 
 def test_bounded_unknown_routes():
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     client.get("/unknown-private-value")
     body = client.get("/metrics").text
     assert 'route="unmatched"' in body
@@ -114,7 +115,7 @@ def test_http_access_logs_are_json_without_raw_paths():
 
 
 def test_invalid_action_request_counts_validation_rejection():
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     before = client.get("/metrics").text
     response = client.post("/actions", json={})
     assert response.status_code == 422
@@ -128,7 +129,7 @@ def test_admission_outcomes_use_fixed_labels_and_commit_after_admission():
     import uuid
     from sqlalchemy import text
 
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     suffix = uuid.uuid4().hex
     agent = "metrics-agent-" + suffix
     resource = "metrics-resource-" + suffix

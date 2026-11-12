@@ -62,11 +62,40 @@ spec:
                 secretKeyRef:
                   name: {{ $root.Values.databaseSecret | quote }}
                   key: database-url
+            {{- if eq $name "api" }}
+            - name: BOTKERNEL_OPERATOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.operatorSecret | quote }}
+                  key: operator-token
+            - name: BOTKERNEL_AGENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.agentSecret | quote }}
+                  key: agent-token
+            - name: BOTKERNEL_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.metricsSecret | quote }}
+                  key: metrics-token
+                  optional: true
+            - name: INVESTIGATION_MAX_CONCURRENT
+              value: {{ $root.Values.investigation.maxConcurrent | quote }}
+            - name: INVESTIGATION_EXECUTION_TIMEOUT_SECONDS
+              value: {{ $root.Values.investigation.executionTimeoutSeconds | quote }}
+            - name: INVESTIGATION_TERMINATION_GRACE_SECONDS
+              value: {{ $root.Values.investigation.terminationGraceSeconds | quote }}
+            {{- end }}
             {{- if has $name (list "publisher" "worker" "recovery" "controller") }}
             - name: ROLE
               value: {{ $name | quote }}
             {{- end }}
             {{- if or (eq $name "cost") (eq $name "performance") }}
+            - name: BOTKERNEL_AGENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.agentSecret | quote }}
+                  key: agent-token
             - name: AGENT_ROLE
               value: {{ $name | quote }}
             - name: BOTKERNEL_AGENT_RESOURCE

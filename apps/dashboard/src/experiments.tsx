@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Evaluation, EvaluationSummary, get, post } from "./api";
+import { download, Evaluation, EvaluationSummary, get, post } from "./api";
 import { Button } from "@/components/ui/button";
 
 const scenarios = [
@@ -28,6 +28,7 @@ export function Experiments() {
   const [duration, setDuration] = useState(120);
   const [selectedId, setSelectedId] = useState("");
   const [formError, setFormError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
   const history = useQuery({ queryKey: ["experiments"], queryFn: () => get<Evaluation[]>("/experiments") });
   const experiment = useQuery({
     queryKey: ["experiment", selectedId],
@@ -110,7 +111,8 @@ export function Experiments() {
 
     {experiment.isError && <article className="error" role="alert">Unable to load this result: {experiment.error.message}</article>}
     {experiment.data && <section className="experiment-results" aria-label="Experiment results">
-      <div className="card-title"><div><p className="eyebrow">VIRTUAL SIMULATION OUTPUT</p><h2>{scenarios.find(([id]) => id === experiment.data?.scenario)?.[1] ?? experiment.data.scenario}</h2><p className="muted">Run {experiment.data.run_id} / seeds {experiment.data.seeds.join(", ")} / {experiment.data.duration_ticks} virtual seconds</p></div><div className="downloads">{Object.entries(experiment.data.artifacts).map(([name, path]) => <a key={name} href={`/api${path}`} download>{name}</a>)}</div></div>
+      <div className="card-title"><div><p className="eyebrow">VIRTUAL SIMULATION OUTPUT</p><h2>{scenarios.find(([id]) => id === experiment.data?.scenario)?.[1] ?? experiment.data.scenario}</h2><p className="muted">Run {experiment.data.run_id} / seeds {experiment.data.seeds.join(", ")} / {experiment.data.duration_ticks} virtual seconds</p></div><div className="downloads">{Object.entries(experiment.data.artifacts).map(([name, path]) => <button type="button" key={name} onClick={() => { setDownloadError(""); void download(path, name).catch(() => setDownloadError("Unable to download this artifact.")); }}>{name}</button>)}</div></div>
+      {downloadError && <p className="error" role="alert">{downloadError}</p>}
       <div className="strategy-snapshots">{selectedSummary.map(row=><article key={row.mode}><div><i style={{background:colors[row.mode]}}/><b>{row.mode_label}</b></div><strong>{fmt(row.application_latency_p95_ms,1)}<small>ms p95 / simulated</small></strong><dl><div><dt>Interventions</dt><dd>{fmt(row.intervention_count,1)}</dd></div><div><dt>Oscillations</dt><dd>{fmt(row.oscillating_resource_changes,1)}</dd></div><div><dt>False-positive occupancy</dt><dd>{fmt(row.false_positive_rate)}</dd></div></dl></article>)}</div>
       <article className="chart-card"><div className="card-title"><div><h3>Application latency by virtual second</h3><p className="muted">Mean across selected seeds; shaded spans are scenario ground truth.</p></div><span className="unit">milliseconds / simulated</span></div>
         <div className="experiment-chart"><ResponsiveContainer><LineChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 4 }}><CartesianGrid stroke="#3b4038" strokeDasharray="4 4" /><XAxis dataKey="tick" interval="preserveStartEnd" minTickGap={28} stroke="#a5aba0" tickLine={false} /><YAxis stroke="#a5aba0" tickLine={false} width={66} label={{ value: "Latency (ms)", angle: -90, position: "insideLeft", fill: "#a5aba0" }} /><Tooltip contentStyle={{ background: "#222420", border: "1px solid #4b5148", borderRadius: 8 }} /><Legend />{harmfulRanges.map((range) => <ReferenceArea key={`${range.start}-${range.stop}`} x1={range.start} x2={range.stop} fill="#b55745" fillOpacity={0.12} />)}<Line key="independent" isAnimationActive={false} type="monotone" dataKey="independent" name="Independent" stroke={colors.independent} dot={false} strokeWidth={2} /><Line key="basic" isAnimationActive={false} type="monotone" dataKey="basic" name="Locks + cooldown" stroke={colors.basic} dot={false} strokeWidth={2} /><Line key="collective" isAnimationActive={false} type="monotone" dataKey="collective" name="Collective controller" stroke={colors.collective} dot={false} strokeWidth={2} /></LineChart></ResponsiveContainer></div><p className="chart-caption">Horizontal axis: virtual seconds</p>

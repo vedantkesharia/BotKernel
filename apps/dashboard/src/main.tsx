@@ -1,4 +1,4 @@
-import React, { Component, lazy, Suspense, useState, type ReactNode } from "react";
+import React, { Component, lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, NavLink, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Action, Agent, Resource, Incident, RuntimeHealth } from "./api";
-import { get } from "./api";
+import { clearOperatorToken, get, hasOperatorToken, login, onUnauthorized } from "./api";
 import { Pill } from "./ui";
 import { Landing } from "./landing";
 import "@xyflow/react/dist/style.css";
@@ -22,7 +22,8 @@ const Fleet = lazy(() => import("./fleet").then(m => ({ default: m.Fleet })));
 const GraphView = lazy(() => import("./graph").then(m => ({ default: m.GraphView })));
 const Investigations = lazy(() => import("./incidents").then(m => ({ default: m.Investigations })));
 const Experiments = lazy(() => import("./experiments").then(m => ({ default: m.Experiments })));
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchInterval: 10000, refetchOnWindowFocus: false } } });
+const createQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: 1, refetchInterval: 10000, refetchOnWindowFocus: false } } });
+const queryClient = createQueryClient();
 
 const nav = [
   { url: "/app", name: "Mission control", icon: Activity },
@@ -67,11 +68,11 @@ function Navigation({ onNavigate, activeIncidents, runtime }: { onNavigate: () =
         <Icon size={17} strokeWidth={1.7}/><span>{name}</span>{url === "/app/incidents" && activeIncidents > 0 && <i className="nav-alert"/>}
       </NavLink>
     )}</nav>
-    <details className="environment-details"><summary><Radio size={14}/>{isAwsDemo ? "AWS demo" : "Local"}<span>{runtime ? "Connected" : "Unknown"}</span></summary><dl><dt>Source</dt><dd>{runtime?.resource_source ?? "Simulator"}</dd><dt>Mode</dt><dd>{runtimeMode}</dd><dt>Infrastructure actions</dt><dd>Disabled</dd><dt>Access</dt><dd>Private, unauthenticated</dd></dl></details>
+    <details className="environment-details"><summary><Radio size={14}/>{isAwsDemo ? "AWS demo" : "Local"}<span>{runtime ? "Connected" : "Unknown"}</span></summary><dl><dt>Source</dt><dd>{runtime?.resource_source ?? "Simulator"}</dd><dt>Mode</dt><dd>{runtimeMode}</dd><dt>Infrastructure actions</dt><dd>Disabled</dd><dt>Access</dt><dd>Authenticated operator</dd></dl></details>
   </aside>;
 }
 
-function App() {
+function App({ onSignOut }: { onSignOut: () => void }) {
   const { pathname } = useLocation();
   const path = pathname === "/app" ? "/app" : pathname;
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -107,7 +108,7 @@ function App() {
         <div className="top-right">
           <Pill tone={ready.isSuccess ? "good" : "warn"}>{ready.isPending ? "Connecting" : ready.isError ? "Disconnected" : "Connected"}</Pill>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="icon-button" aria-label="Refresh data" onClick={() => qc.invalidateQueries()}><RefreshCw size={16}/></Button></TooltipTrigger><TooltipContent>Refresh operational data</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="avatar" tabIndex={0} aria-label="Local operator, unauthenticated"><Command size={16}/></span></TooltipTrigger><TooltipContent>Local operator · unauthenticated</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="icon-button" aria-label="Sign out" onClick={onSignOut}><Command size={16}/></Button></TooltipTrigger><TooltipContent>Sign out</TooltipContent></Tooltip>
         </div>
       </header>
       <main className="page" id="main-content" tabIndex={-1}>
@@ -129,12 +130,62 @@ function App() {
   </div>;
 }
 
+function OperatorAccess() {
+  const [authenticated, setAuthenticated] = useState(hasOperatorToken);
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const [consoleClient, setConsoleClient] = useState(createQueryClient);
+
+  function signOut(message = "") {
+    clearOperatorToken();
+    void consoleClient.cancelQueries();
+    consoleClient.clear();
+    setConsoleClient(createQueryClient());
+    setAuthenticated(false);
+    setToken("");
+    setError(message);
+  }
+
+  useEffect(() => onUnauthorized(() => signOut("Your access is no longer valid. Sign in again.")), [consoleClient]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setError("");
+    try {
+      await login(token);
+      setToken("");
+      setAuthenticated(true);
+    } catch (failure) {
+      setError(failure instanceof Error && failure.message.includes("401")
+        ? "Invalid operator credential." : "Unable to verify access. Check the gateway configuration and connection.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (authenticated) return <QueryClientProvider client={consoleClient}><App onSignOut={() => signOut()}/></QueryClientProvider>;
+  return <main className="operator-access">
+    <form className="operator-access-card panel" onSubmit={submit}>
+      <div className="overline">BOTKERNEL / PRIVATE OPERATIONS</div>
+      <h1>Operator access</h1>
+      <p>Enter your operator credential to open the operations console.</p>
+      <label htmlFor="operator-token">Operator credential</label>
+      <input id="operator-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required />
+      {error && <div className="alert-error" role="alert">{error}</div>}
+      <Button type="submit" disabled={pending}>{pending ? "Verifying..." : "Sign in"}</Button>
+      <a href="/">Return to overview</a>
+    </form>
+  </main>;
+}
+
 function RouteRoot() {
   const { pathname, search, hash } = useLocation();
   const legacy = new Set(["/agents", "/graph", "/incidents", "/experiments"]);
   if (pathname === "/") return <Landing/>;
   if (legacy.has(pathname)) return <Navigate to={`/app${pathname}${search}${hash}`} replace/>;
-  if (pathname === "/app" || pathname.startsWith("/app/")) return <App/>;
+  if (pathname === "/app" || pathname.startsWith("/app/")) return <OperatorAccess/>;
   return <Navigate to="/" replace/>;
 }
 

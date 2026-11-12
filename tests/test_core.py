@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 from concurrent.futures import ThreadPoolExecutor
 import uuid
 import pytest
@@ -439,7 +440,7 @@ def test_contracts_and_poison_events():
     from fastapi.testclient import TestClient
     from botkernel.api import app
     from confluent_kafka import Producer
-    client=TestClient(app)
+    client=TestClient(app, headers=operator_headers())
     assert client.post('/agents/bad!').status_code==422
     assert client.post('/agents/contracts').status_code==200
     base=dict(agent='contracts',workflow='contracts',idempotency_key='contract',resource='service-b',expected_version=0,capacity=1)

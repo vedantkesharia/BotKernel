@@ -202,4 +202,4 @@ The commands assume the approved operator has already copied artifacts securely 
 
 ### Deployment status
 
-Static preparation is not a deployment. AWS identity/quota/IAM/model access, an Ohio AMI, image push, EC2 startup, SSM, CloudWatch delivery, Bedrock and restore have not been verified. Publicly reachable host addresses are for outbound traffic only; the security group has no ingress. The dashboard/API remain unauthenticated and are suitable only behind the described single-operator SSM access boundary.
+Static preparation is not a deployment. AWS identity/quota/IAM/model access, an Ohio AMI, image push, EC2 startup, SSM, CloudWatch delivery, Bedrock and restore have not been verified. Publicly reachable host addresses are for outbound traffic only; the security group has no ingress. Current source requires operator credentials, but an existing deployment may still run an older unauthenticated image; keep it behind the described single-operator SSM access boundary.

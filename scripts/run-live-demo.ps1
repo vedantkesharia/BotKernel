@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+if (-not $env:BOTKERNEL_OPERATOR_TOKEN) { throw "Set BOTKERNEL_OPERATOR_TOKEN to a strong random credential before starting." }
 $project = if ($env:BOTKERNEL_LIVE_DEMO_PROJECT) {
     $env:BOTKERNEL_LIVE_DEMO_PROJECT
 } else {
@@ -61,7 +62,7 @@ if (-not $demoDone) {
 
 $demoOutput = & docker compose -p $project --profile stability --profile demo logs --no-color live-demo
 Write-Host $demoOutput
-$incidents = Invoke-RestMethod -Uri "$apiUrl/incidents" -TimeoutSec 10
+$incidents = Invoke-RestMethod -Uri "$apiUrl/incidents" -TimeoutSec 10 -Headers @{ Authorization = "Bearer $env:BOTKERNEL_OPERATOR_TOKEN" }
 Write-Host "Persisted incidents: $($incidents.Count)"
 Write-Host "API: $apiUrl"
 Write-Host "Start the dashboard with BOTKERNEL_API_TARGET=$apiUrl."

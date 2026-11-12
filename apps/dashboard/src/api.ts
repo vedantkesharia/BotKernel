@@ -1,17 +1,50 @@
-export async function get<T>(path: string): Promise<T> {
-  const response = await fetch(`/api${path}`);
-  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
-  return response.json();
+let operatorToken: string | null = null;
+const unauthorizedListeners = new Set<() => void>();
+
+export function hasOperatorToken() { return operatorToken !== null; }
+export function clearOperatorToken() { operatorToken = null; }
+export function onUnauthorized(listener: () => void) {
+  unauthorizedListeners.add(listener);
+  return () => { unauthorizedListeners.delete(listener); };
 }
 
+async function request(path: string, options: RequestInit = {}, token = operatorToken): Promise<Response> {
+  const headers = new Headers(options.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`/api${path}`, { ...options, headers, credentials: "omit", cache: "no-store" });
+  if (!response.ok) {
+    if (response.status === 401 && token && token === operatorToken) {
+      clearOperatorToken();
+      unauthorizedListeners.forEach(listener => listener());
+    }
+    throw new Error(`Backend returned ${response.status}`);
+  }
+  return response;
+}
+
+export async function login(token: string): Promise<void> {
+  await request("/auth/session", {}, token);
+  operatorToken = token;
+}
+
+export async function get<T>(path: string): Promise<T> { return (await request(path)).json(); }
+
 export async function post<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`/api${path}`, {
+  return (await request(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`Backend returned ${response.status}: ${await response.text()}`);
-  return response.json();
+  })).json();
+}
+
+export async function download(path: string, name: string): Promise<void> {
+  const blob = await (await request(path)).blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 export type Agent = {

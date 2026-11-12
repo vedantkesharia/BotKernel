@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from sqlalchemy import text
+from botkernel.security import operator_headers
 
 
 MODEL_ID = "us.amazon.nova-micro-v1:0"
@@ -232,7 +233,7 @@ def prepare_local_fixtures(*, api_url: str, output: Path) -> dict[str, Any]:
         "seed_actions": [],
     }
     try:
-        with httpx.Client(base_url=api_url.rstrip("/"), timeout=15) as client:
+        with httpx.Client(base_url=api_url.rstrip("/"), timeout=15, headers=operator_headers()) as client:
             health = _read_json(client, "/health")
             if (
                 health.get("cloud_mode") != "mock"
@@ -350,7 +351,7 @@ def run_acceptance(
         "cases": {},
     }
     try:
-        with httpx.Client(base_url=api_url.rstrip("/"), timeout=15) as client:
+        with httpx.Client(base_url=api_url.rstrip("/"), timeout=15, headers=operator_headers()) as client:
             health = _read_json(client, "/health")
             if (
                 health.get("cloud_mode") != "mock"

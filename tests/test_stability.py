@@ -1,3 +1,4 @@
+from botkernel.security import operator_headers
 import uuid
 
 from sqlalchemy import text
@@ -246,7 +247,7 @@ def test_operator_transitions_are_guarded_and_idempotent_under_concurrent_replay
     from fastapi.testclient import TestClient
     from botkernel.api import app
 
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     escalated = _operator_incident("operator-escalated", "ESCALATED")
     invalid = client.post(
         f"/incidents/{escalated}/resolve",
@@ -313,7 +314,7 @@ def test_controller_and_operator_resolution_serialize_without_losing_recurrence(
 
     incident_id = _operator_incident("operator-race", "VERIFIED")
     _oscillate("operator-race")
-    client = TestClient(app)
+    client = TestClient(app, headers=operator_headers())
     with ThreadPoolExecutor(max_workers=2) as pool:
         resolution = pool.submit(
             client.post,
@@ -375,7 +376,7 @@ def test_investigator_missing_reference_never_claims_complete():
     assert result['missing_references']==['missing-action']
 
 
-def test_investigation_persistence_preserves_operational_rows(monkeypatch):
+def test_investigation_persistence_preserves_operational_rows(monkeypatch, in_process_investigator):
     from fastapi.testclient import TestClient
     with engine.begin() as c:
         c.execute(text("UPDATE quota SET capacity=250 WHERE id=1"))
@@ -398,7 +399,7 @@ def test_investigation_persistence_preserves_operational_rows(monkeypatch):
     def snapshot():
         with engine.connect() as c: return {name:c.execute(text(query),{'id':incident['id']}).scalars().all() for name,query in queries.items()}
     before=snapshot()
-    response=TestClient(__import__('botkernel.api',fromlist=['app']).app).post(f"/incidents/{incident['id']}/investigations",json={'idempotency_key':'readonly-snapshot'})
+    response=TestClient(__import__('botkernel.api',fromlist=['app']).app, headers=operator_headers()).post(f"/incidents/{incident['id']}/investigations",json={'idempotency_key':'readonly-snapshot'})
     assert response.status_code==200
     assert response.json()['status']=='COMPLETE'
     assert snapshot()==before
@@ -418,7 +419,8 @@ def test_investigation_persistence_preserves_operational_rows(monkeypatch):
                 confidence_caveats=['Correlation is not causation.'],
             ),{'provider':'bedrock','model_id':'offline-test-model','input_tokens':25,'output_tokens':15,'invocations':1}
     monkeypatch.setattr('botkernel.bedrock.BedrockConverse',lambda:OfflineConverse())
-    ai_response=TestClient(__import__('botkernel.api',fromlist=['app']).app).post(
+    in_process_investigator()
+    ai_response=TestClient(__import__('botkernel.api',fromlist=['app']).app, headers=operator_headers()).post(
         f"/incidents/{incident['id']}/investigations",
         json={'idempotency_key':'readonly-ai-snapshot','provider':'bedrock'},
     )
@@ -431,7 +433,7 @@ def test_investigation_persistence_preserves_operational_rows(monkeypatch):
 
     monkeypatch.setattr('botkernel.bedrock.BedrockConverse',RealConverse)
     monkeypatch.setenv('BEDROCK_ENABLED','false')
-    disabled=TestClient(__import__('botkernel.api',fromlist=['app']).app).post(
+    disabled=TestClient(__import__('botkernel.api',fromlist=['app']).app, headers=operator_headers()).post(
         f"/incidents/{incident['id']}/investigations",
         json={'idempotency_key':'disabled-ai-snapshot','provider':'bedrock'},
     )

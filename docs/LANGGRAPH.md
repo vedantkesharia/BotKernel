@@ -32,9 +32,9 @@ Use an unused port/project name and retain volumes; do not add `-v`. This runs d
 
 The investigator first gathers bounded evidence using read-only PostgreSQL transactions, then classifies verified facts, deterministic inferences and evidence gaps. Bedrock, when explicitly selected and separately authorized, may add only evidence-grounded `HYPOTHESIS` findings and advisory recommendations. It cannot alter the deterministic findings or execute remediation. Evidence links are validated against the supplied facts and link into the dashboard Effect Graph.
 
-Reports are idempotently persisted in PostgreSQL and expose provider/model provenance and bounded error status. Concurrent requests use PostgreSQL session advisory slots; evidence queries have a five-second statement timeout. Session loss can release a slot while graph computation continues, and there is no hard graph cancellation or whole-request deadline. Stale workers are fenced from finalizing reports.
+Reports are idempotently persisted in PostgreSQL and expose provider/model provenance and bounded error status. Session advisory slots constrain admission under normal connectivity; evidence queries have a five-second statement timeout. A supervised process executes each graph with a configurable hard deadline and termination grace; stale workers are fenced from finalizing reports. Session loss can release a slot while its process continues, so this is not a strict distributed concurrency cap during a partition. A terminated Bedrock invocation may have incurred a charge and is never automatically retried.
 
-The API has no browser authentication. The local Compose API binds to loopback; the AWS demo additionally exposes only the loopback-bound dashboard, which proxies API requests over the private container network. Do not expose it to untrusted networks.
+The operations console uses an externally configured operator bearer credential. The local Compose API binds to loopback; the AWS demo additionally exposes only the loopback-bound dashboard, which proxies API requests over the private container network. Do not expose it to untrusted networks.
 
 ## Optional Bedrock Converse provider (offline implementation)
 

@@ -15,6 +15,7 @@ import httpx
 from sqlalchemy import text
 
 from botkernel.core import engine
+from botkernel.security import operator_headers
 
 
 def percentile(values, percentile_value):
@@ -85,7 +86,7 @@ def run(count, concurrency, warmup, output):
     def worker(index):
         samples = []
         version, capacity = 0, 1
-        with httpx.Client(base_url="http://api:8000", timeout=10) as client:
+        with httpx.Client(base_url="http://api:8000", timeout=10, headers=operator_headers()) as client:
             for phase, amount in (("warmup", warmup), ("measured", count // concurrency + (index < count % concurrency))):
                 if phase == "measured":
                     try:

@@ -58,7 +58,7 @@ def test_fresh_migration_and_repeated_startup(migration_schema):
         assert result.returncode == 0, result.stderr
     with engine.begin() as connection:
         connection.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
         assert connection.execute(text("SELECT count(*) FROM resources")).scalar_one() == 2
         assert connection.execute(text("SELECT count(*) FROM incident_transitions")).scalar_one() == 0
 
@@ -69,7 +69,7 @@ def test_valid_legacy_upgrade_preserves_data(migration_schema):
     assert result.returncode == 0, result.stderr
     with engine.begin() as connection:
         connection.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
         assert connection.execute(text("SELECT count(*) FROM agents WHERE id='legacy-agent'")).scalar_one() == 1
         assert connection.execute(text("SELECT capacity FROM resources WHERE id='service-a'")).scalar_one() == 5
         assert connection.execute(text("SELECT capacity FROM external_resources WHERE id='service-a'")).scalar_one() == 5
@@ -124,10 +124,10 @@ def test_head_schema_drift_fails_repeated_startup(migration_schema, drift, reaso
     assert reason in result.stderr
     with engine.begin() as connection:
         connection.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
 
 
-def test_upgrade_0006_to_0008_preserves_incident_effects(migration_schema):
+def test_upgrade_0006_to_head_preserves_incident_effects(migration_schema):
     env={**os.environ, "PGOPTIONS": f"-csearch_path={migration_schema}"}
     result=subprocess.run([sys.executable,"-c","from alembic.config import Config; from alembic import command; command.upgrade(Config('alembic.ini'),'0006')"],env=env,text=True,capture_output=True,timeout=30)
     assert result.returncode==0,result.stderr
@@ -145,9 +145,33 @@ def test_upgrade_0006_to_0008_preserves_incident_effects(migration_schema):
     assert result.returncode==0,result.stderr
     with engine.begin() as c:
         c.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
-        assert c.execute(text('SELECT version_num FROM alembic_version')).scalar_one()=='0008'
+        assert c.execute(text('SELECT version_num FROM alembic_version')).scalar_one()=='0009'
         for table,expected in snapshot.items(): assert c.execute(text('SELECT row_to_json(t)::text FROM '+table+' t ORDER BY 1')).scalars().all()==expected
         assert c.execute(text("SELECT count(*) FROM pg_constraint WHERE conrelid='investigation_reports'::regclass AND contype IN ('p','f','u','c')")).scalar_one()>=6
         assert c.execute(text("SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND tablename='investigation_reports'")).scalar_one()>=3
         c.execute(text("INSERT INTO investigation_reports(id,incident_id,idempotency_key,request_fingerprint,status,provider,lease_token,lease_until) VALUES(:id,:incident,'upgrade',:fingerprint,'RUNNING','deterministic_mock',:token,now()+interval '60 seconds')"),dict(id=str(uuid.uuid4()),incident=incident,fingerprint='0'*64,token=str(uuid.uuid4())))
         c.execute(text("INSERT INTO investigation_reports(id,incident_id,idempotency_key,request_fingerprint,status,provider,lease_token,lease_until) VALUES(:id,:incident,'bedrock-upgrade',:fingerprint,'RUNNING','bedrock',:token,now()+interval '60 seconds')"),dict(id=str(uuid.uuid4()),incident=incident,fingerprint='1'*64,token=str(uuid.uuid4())))
+
+
+def test_upgrade_0008_to_0009_preserves_existing_reports(migration_schema):
+    env = {**os.environ, "PGOPTIONS": f"-csearch_path={migration_schema}"}
+    result = subprocess.run(
+        [sys.executable, "-c", "from alembic.config import Config; from alembic import command; command.upgrade(Config('alembic.ini'),'0008')"],
+        env=env, text=True, capture_output=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    with engine.begin() as c:
+        c.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
+        incident = c.execute(text("INSERT INTO incidents(resource,score,evidence) VALUES('service-a',0.8,CAST('{}' AS jsonb)) RETURNING id")).scalar_one()
+        report_id = str(uuid.uuid4())
+        c.execute(text("INSERT INTO investigation_reports(id,incident_id,idempotency_key,request_fingerprint,status,provider,error_category,completed_at) VALUES(:id,:incident,'old',:fingerprint,'FAILED','deterministic_mock','lease_expired',now())"),
+                  {"id": report_id, "incident": incident, "fingerprint": "0"*64})
+        before = c.execute(text("SELECT row_to_json(r)::text FROM investigation_reports r WHERE id=:id"), {"id": report_id}).scalar_one()
+    result = _initialize(migration_schema)
+    assert result.returncode == 0, result.stderr
+    with engine.begin() as c:
+        c.exec_driver_sql(f'SET LOCAL search_path TO "{migration_schema}"')
+        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
+        assert c.execute(text("SELECT row_to_json(r)::text FROM investigation_reports r WHERE id=:id"), {"id": report_id}).scalar_one() == before
+        c.execute(text("INSERT INTO investigation_reports(id,incident_id,idempotency_key,request_fingerprint,status,provider,error_category,completed_at) VALUES(:id,:incident,'new',:fingerprint,'FAILED','deterministic_mock','execution_timeout',now())"),
+                  {"id": str(uuid.uuid4()), "incident": incident, "fingerprint": "1"*64})

@@ -1,3 +1,4 @@
+import { signIn } from "./auth-helper";
 import {expect,test} from "@playwright/test";
 
 test("investigates persisted incident and opens verified graph evidence", async ({page}) => {
@@ -5,6 +6,7 @@ test("investigates persisted incident and opens verified graph evidence", async 
   page.on("pageerror",error=>errors.push(error.message));
   page.on("console",message=>{if(message.type()==="error") errors.push(message.text())});
   await page.goto("/incidents");
+  await signIn(page);
   await expect(page.getByRole("button",{name:"Analyze Incident"})).toBeVisible();
   const posted=page.waitForResponse(r=>r.url().includes("/investigations") && r.request().method()==="POST");
   await page.getByRole("button",{name:"Analyze Incident"}).click();
@@ -14,6 +16,7 @@ test("investigates persisted incident and opens verified graph evidence", async 
   await expect(page.getByText("Deterministic analysis — no LLM used")).toBeVisible();
   await expect(page.getByText(data.report.conclusion)).toBeVisible();
   await page.reload();
+  await signIn(page);
   await expect(page.getByText(data.report.conclusion)).toBeVisible();
   await page.getByRole("link",{name:action}).first().click();
   await expect(page).toHaveURL(/\/graph\?/);
@@ -21,12 +24,14 @@ test("investigates persisted incident and opens verified graph evidence", async 
     .or(page.getByRole("status").filter({ hasText: /referenced action is not in this graph window/i }));
   await expect(graphEvidence.first()).toBeVisible();
   await page.reload();
+  await signIn(page);
   await expect(graphEvidence.first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test("missing graph evidence is explained",async({page})=>{
   await page.goto("/graph?action=00000000-0000-0000-0000-000000000000&resource=ui-validation");
+  await signIn(page);
   await expect(page.getByText(/referenced action is not in this graph window/i)).toBeVisible();
 });
 
@@ -73,6 +78,7 @@ test("saved Bedrock report shows actual provider, model, usage and advisory hypo
   });
   await page.setViewportSize({width:390,height:844});
   await page.goto("/app/incidents");
+  await signIn(page);
   await expect(page.locator(".provider-label")).toContainText("BEDROCK");
   await expect(page.locator(".provider-label")).toContainText("us.amazon.nova-micro-v1:0");
   await expect(page.locator(".provider-label")).toContainText("321/88 TOKENS");
