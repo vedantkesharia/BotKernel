@@ -305,6 +305,8 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
     client = TestClient(app, headers=operator_headers())
 
     class LocalApiSession:
+        investigation_timeouts = []
+
         def __init__(self, *args, **kwargs):
             pass
 
@@ -318,6 +320,8 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
             return client.get(path)
 
         def post(self, path, **kwargs):
+            if "/investigations" in path:
+                self.investigation_timeouts.append(kwargs.pop("timeout", None))
             return client.post(path, **kwargs)
 
     monkeypatch.setattr(httpx, "Client", LocalApiSession)
@@ -340,7 +344,32 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
     assert result["cases"]["investigator"]["provenance"]["output_tokens"] == 88
     assert result["cases"]["investigator"]["replay_preserved_report"] is True
     assert result["cases"]["investigator"]["operational_state_unchanged"] is True
+    assert LocalApiSession.investigation_timeouts == [75, None]
     assert os.environ["BOTKERNEL_AGENT_RESOURCE"] == "acceptance-outer-resource"
+
+    from botkernel.bedrock import BedrockProviderError
+    diagnostics = {
+        "category": "client_configuration", "stage": "client_initialization",
+        "missing_module": "dateutil", "response_received": False,
+        "remote_outcome_unknown": False,
+    }
+
+    def failed_run(*args, **kwargs):
+        raise BedrockProviderError("client_configuration", diagnostics=diagnostics)
+
+    monkeypatch.setattr(lang_agents, "run_once", failed_run)
+    failure_file = tmp_path/"failed-acceptance.json"
+    with pytest.raises(AcceptanceError, match="client_configuration"):
+        acceptance.run_acceptance(
+            api_url="http://127.0.0.1:8000", cost_resource=resources["cost"],
+            performance_resource=resources["performance"], incident_id=incident_id,
+            output=failure_file,
+        )
+    import json
+    failure = json.loads(failure_file.read_text())
+    assert failure["status"] == "FAILED_OR_OUTCOME_UNKNOWN"
+    assert failure["cases"]["cost"]["diagnostics"] == diagnostics
+    assert "performance" not in failure["cases"]
 
 
 @pytest.mark.parametrize(

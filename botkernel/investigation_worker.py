@@ -21,7 +21,10 @@ def main():
         sys.stdout.write(encoded)
     except Exception as error:
         category = error.category if isinstance(error, BedrockProviderError) else "execution_error"
-        sys.stdout.write(json.dumps({"error_category": category}))
+        result = {"error_category": category}
+        if isinstance(error, BedrockProviderError) and error.diagnostics:
+            result["error_diagnostics"] = error.diagnostics
+        sys.stdout.write(json.dumps(result))
 
 
 if __name__ == "__main__":

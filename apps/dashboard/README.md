@@ -52,5 +52,5 @@ The Agent Fleet displays actual persisted provider/model provenance, latest stru
 
 ## Private AWS demo (deployed)
 
-The deployment image is built from `Dockerfile.deploy` and served by Nginx with `/api/` proxied to FastAPI on the private Compose network. PostgreSQL, Kafka, Redis and the direct API have no host-published ports. The updated authentication has not been deployed or verified in AWS; do not expose this deployment to the public internet or a shared tunnel. Follow [`../../infra/terraform/README.md`](../../infra/terraform/README.md) for the generic deployment design and prerequisites; no current cloud resource state is asserted.
+The deployment image is built from `Dockerfile.deploy` and served by Nginx with `/api/` proxied to FastAPI on the private Compose network. PostgreSQL, Kafka, Redis and the direct API have no host-published ports. The latest deployment applied migration `0009` and verified operator and agent authentication, dashboard loopback HTML and the authenticated incident proxy. The instance was stopped after acceptance; a real SSM tunnel and cloud browser session have not yet been verified. Do not expose this deployment to the public internet or a shared tunnel. See [`../../infra/terraform/README.md`](../../infra/terraform/README.md) for the separately authorized resume procedure.
 

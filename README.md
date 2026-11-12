@@ -4,7 +4,7 @@
 
 BotKernel is a distributed AgentOps platform for detecting and containing harmful interactions between autonomous agents sharing infrastructure. It combines durable action execution, a deterministic Collective Stability Controller, evidence-grounded incident investigation, and an operator dashboard. Unlike a chatbot or agent-framework demo, its core contribution is controlling shared-system side effects and retaining evidence across asynchronous execution.
 
-> **Implementation status:** Local PostgreSQL/Kafka execution, simulator, stability controller, deterministic agents/investigator, and dashboard are implemented. Bedrock integration exists behind explicit gates, but live inference has not been verified. AWS state may be stale or unknown. Do not infer cloud deployment readiness from historical notes.
+> **Implementation status (2026-11-12):** The current backend and dashboard images were deployed to a private EC2 demo and exercised with a deterministic incident and investigation. The instance was stopped afterward; retained storage remains billable. A bounded Bedrock Cost attempt ended with an ambiguous client error: no successful live inference or usage was observed. See [acceptance details](docs/BEDROCK_ACCEPTANCE.md).
 
 ## Architecture
 
@@ -70,7 +70,7 @@ flowchart TB
     CMP["Local Docker Compose"]:::infra
     K8S["Local Kubernetes Helm<br/>(runtime unverified)"]:::infra
     TF["Terraform"]:::infra
-    AWS["Private AWS Demo<br/>(current state unknown)"]:::infra
+    AWS["Private AWS Demo<br/>(stopped after validation)"]:::infra
     RUN["BotKernel Services<br/>(deployment targets)"]:::service
     CMP ~~~ K8S ~~~ TF
     TF -. provisions .-> AWS
@@ -96,7 +96,7 @@ flowchart TB
   style L5 fill:#fffbf6,stroke:#e6d5c6,color:#334155
 ```
 
-LangGraph Cost and Performance agents submit proposals through the FastAPI gateway, which records reservations and an outbox in PostgreSQL's authoritative ledger. Kafka delivers events at least once to workers that apply simulator effects; the recovery service retries or reconciles work, and PostgreSQL persists effects, incidents and investigation reports. The PostgreSQL boxes show logical views of the same database. The committed-effect graph and deterministic Collective Stability Controller detect harmful interactions and apply resource holds; the LangGraph Investigator examines evidence on demand. The React dashboard and Experiment Lab access operational data through the API. Redis is advisory, and Bedrock reasoning is optional and unverified live. Prometheus, Grafana, OpenTelemetry and Jaeger provide observability. Docker Compose supports local operation; the local Helm/Kubernetes chart is runtime-unverified, and Terraform describes a private AWS demo whose current state is unknown. See [architecture details](docs/ARCHITECTURE.md).
+LangGraph Cost and Performance agents submit proposals through the FastAPI gateway, which records reservations and an outbox in PostgreSQL's authoritative ledger. Kafka delivers events at least once to workers that apply simulator effects; the recovery service retries or reconciles work, and PostgreSQL persists effects, incidents and investigation reports. The PostgreSQL boxes show logical views of the same database. The committed-effect graph and deterministic Collective Stability Controller detect harmful interactions and apply resource holds; the LangGraph Investigator examines evidence on demand. The React dashboard and Experiment Lab access operational data through the API. Redis is advisory, and Bedrock reasoning is optional and unverified live. Prometheus, Grafana, OpenTelemetry and Jaeger provide observability. Docker Compose supports local operation; the Helm chart is runtime-unverified, and Terraform describes the private single-host AWS demo. See [architecture details](docs/ARCHITECTURE.md).
 
 ## Execution and recovery
 
@@ -117,7 +117,7 @@ LangGraph Cost and Performance agents submit proposals through the FastAPI gatew
 | Investigation | Evidence retrieval, citation validation, persisted reports and idempotent request handling | Deterministic by default; live Bedrock inference unverified |
 | Dashboard | Landing, Mission Control, Agent Fleet, Effect Graph, Investigations, Experiment Lab | Single-operator bearer authentication; keep private/loopback |
 | Observability | Prometheus/Grafana and OpenTelemetry/Jaeger integrations | See [observability notes](docs/OBSERVABILITY.md) for scope |
-| Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | Historical AWS state is not a current-state assertion; Kubernetes runtime is unverified |
+| Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | Deterministic EC2 demo verified and stopped on 2026-11-12; Kubernetes runtime unverified |
 
 ## Evaluation
 
@@ -136,7 +136,7 @@ The retained local PostgreSQL/Kafka runs measured 25 actions at concurrency 1, 5
 | Redis | Advisory coordination and budget state |
 | React / TypeScript | Operations dashboard and Experiment Lab |
 | Docker Compose | Reproducible local multi-service environment |
-| Terraform / AWS | Optional private single-host deployment; current cloud state unknown |
+| Terraform / AWS | Optional private single-host deployment; stopped after the 2026-11-12 demo |
 | Prometheus, Grafana, OpenTelemetry, Jaeger | Metrics, dashboards, traces and trace inspection |
 
 ## Quick start
@@ -188,10 +188,10 @@ Local Docker Compose is the supported evaluation path. Terraform and deployment 
 - Operational API routes require a configured high-entropy operator bearer token; agents use a separate restricted token. `/health` and `/ready` are public. Missing or invalid authentication configuration fails closed.
 - The API accepts `BOTKERNEL_OPERATOR_TOKEN` and optional `BOTKERNEL_AGENT_TOKEN`, or their respective `_FILE` alternatives; do not set both forms for one credential. Restrict secret-file permissions. The private AWS Compose template mounts files only into the services that need them.
 - The console retains its token only in memory; reload requires sign-in. Tokens have no automatic expiry: sign-out clears local state, not the server credential, so rotate the token to revoke it. The shared agent token is not per-agent identity and permits simulator action submission. Use TLS on any non-loopback connection and keep the API private; authentication is not a public-exposure boundary. Prometheus uses a separate read-only metrics token supplied through a secret file; see [observability setup](docs/OBSERVABILITY.md).
-- The Helm chart references externally created operator and agent Secrets; its metrics Secret is optional. Helm templates were validated but not deployed. AWS-demo changes are not deployed or runtime-validated.
+- The Helm chart references externally created operator and agent Secrets; its metrics Secret is optional. Helm templates were validated but not deployed.
 - Local simulations are not proof of multi-host production reliability.
-- Live Bedrock invocation and current AWS deployment state are unverified.
-- Investigations run in supervised processes with a bounded timeout; advisory slots do not guarantee a distributed concurrency cap across database partitions. Backup/restore remains unverified.
+- Successful live Bedrock inference is unverified; the one Cost attempt had an ambiguous error and was not retried. The private dashboard HTTP/proxy path was verified on EC2, not in a cloud browser.
+- Investigations run in supervised processes with a bounded timeout; advisory slots do not guarantee a distributed concurrency cap across database partitions. A pre-migration PostgreSQL dump was restored into a separate verification database, but full disaster recovery was not tested.
 
 ## Project documentation
 

@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Any, TypeVar
@@ -11,13 +13,60 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 T = TypeVar("T", bound=BaseModel)
+log = logging.getLogger("botkernel.bedrock")
 
 
 class BedrockProviderError(RuntimeError):
-    def __init__(self, category: str, *, retryable: bool = False):
+    def __init__(self, category: str, *, retryable: bool = False, diagnostics: dict[str, Any] | None = None):
         super().__init__(category)
         self.category = category
         self.retryable = retryable
+        self.diagnostics = diagnostics or {}
+
+
+def _failure_diagnostics(error: Exception | None, category: str, stage: str, *, response_received: bool) -> dict[str, Any]:
+    def safe_text(value, pattern):
+        return value if isinstance(value, str) and re.fullmatch(pattern, value) else None
+
+    metadata = {}
+    aws_error = {}
+    if error is not None:
+        response = getattr(error, "response", None)
+        if isinstance(response, dict):
+            metadata = response.get("ResponseMetadata") or {}
+            aws_error = response.get("Error") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    if not isinstance(aws_error, dict):
+        aws_error = {}
+    status = metadata.get("HTTPStatusCode")
+    exception_type = type(error).__name__ if error is not None else None
+    timeout = (
+        "read" if exception_type == "ReadTimeoutError" else
+        "connect" if exception_type == "ConnectTimeoutError" else None
+    )
+    diagnostics = {
+        "category": category,
+        "stage": stage,
+        "exception_type": safe_text(exception_type, r"[A-Za-z][A-Za-z0-9_]{0,80}"),
+        "missing_module": safe_text(getattr(error, "name", None), r"[A-Za-z0-9_.]{1,80}") if isinstance(error, ModuleNotFoundError) else None,
+        "aws_error_code": safe_text(aws_error.get("Code"), r"[A-Za-z0-9_]{1,100}"),
+        "http_status": status if type(status) is int and 100 <= status <= 599 else None,
+        "request_id": safe_text(metadata.get("RequestId"), r"[A-Za-z0-9-]{1,128}"),
+        "boto3_version": safe_text(getattr(sys.modules.get("boto3"), "__version__", None), r"[0-9.]{1,40}"),
+        "botocore_version": safe_text(getattr(sys.modules.get("botocore"), "__version__", None), r"[0-9.]{1,40}"),
+        "timeout": timeout,
+        "response_received": response_received,
+        "remote_outcome_unknown": stage == "converse_request",
+    }
+    return diagnostics
+
+
+def _reported_failure(error: Exception | None, category: str, stage: str, *, retryable: bool = False,
+                      response_received: bool = False) -> BedrockProviderError:
+    diagnostics = _failure_diagnostics(error, category, stage, response_received=response_received)
+    log.warning("bedrock failure", extra={"event": "bedrock_failure", "bedrock_diagnostics": diagnostics})
+    return BedrockProviderError(category, retryable=retryable, diagnostics=diagnostics)
 
 
 class AgentDecision(BaseModel):
@@ -124,8 +173,13 @@ class BedrockConverse:
                         retries={"total_max_attempts": 1, "mode": "standard"},
                     ),
                 )
+            except BedrockProviderError:
+                raise
             except Exception as error:
-                raise BedrockProviderError("client_configuration") from error
+                category, retryable = classify_bedrock_error(error)
+                if category == "bedrock_client_error":
+                    category = "client_configuration"
+                raise _reported_failure(error, category, "client_initialization", retryable=retryable) from error
         return self._client
 
     def _reserve_daily_budget(self, run_id: str, estimated_tokens: int):
@@ -160,8 +214,9 @@ class BedrockConverse:
             raise BedrockProviderError("input_too_large")
         estimated_tokens=len(system.encode("utf-8"))+len(encoded.encode("utf-8"))+settings.max_output_tokens
         self._budget_reserver(run_id,estimated_tokens)
+        client = self._runtime()
         try:
-            response = self._runtime().converse(
+            response = client.converse(
                 modelId=self.settings.model_id,
                 system=[{"text": system}],
                 messages=[{"role": "user", "content": [{"text": encoded}]}],
@@ -172,23 +227,33 @@ class BedrockConverse:
             )
         except Exception as error:
             category, retryable = classify_bedrock_error(error)
-            raise BedrockProviderError(category, retryable=retryable) from error
+            try:
+                from botocore.exceptions import ClientError
+                response_received = isinstance(error, ClientError)
+            except ImportError:
+                response_received = False
+            raise _reported_failure(error, category, "converse_request", retryable=retryable,
+                                    response_received=response_received) from error
+        if not isinstance(response, dict):
+            raise _reported_failure(None, "invalid_model_response", "response_validation", response_received=True)
         stop = response.get("stopReason")
         if stop in {"guardrail_intervened", "content_filtered"}:
-            raise BedrockProviderError("model_refusal")
+            raise _reported_failure(None, "model_refusal", "response_validation", response_received=True)
         if stop == "max_tokens":
-            raise BedrockProviderError("response_truncated")
+            raise _reported_failure(None, "response_truncated", "response_validation", response_received=True)
         try:
             blocks = response["output"]["message"]["content"]
             text = "".join(block["text"] for block in blocks if isinstance(block, dict) and isinstance(block.get("text"), str))
             if not text or len(text.encode("utf-8")) > 16_000:
-                raise BedrockProviderError("invalid_model_response")
+                raise _reported_failure(None, "invalid_model_response", "response_validation", response_received=True)
             parsed = response_type.model_validate_json(text)
         except BedrockProviderError:
             raise
         except Exception as error:
-            raise BedrockProviderError("invalid_model_response") from error
+            raise _reported_failure(error, "invalid_model_response", "response_validation", response_received=True) from error
         usage = response.get("usage") or {}
+        if not isinstance(usage, dict):
+            raise _reported_failure(None, "invalid_model_response", "response_validation", response_received=True)
         provenance = {
             "provider": "bedrock",
             "model_id": self.settings.model_id,
@@ -273,10 +338,15 @@ def classify_bedrock_error(error: Exception) -> tuple[str, bool]:
         from botocore.exceptions import (
             ClientError, ConnectTimeoutError, EndpointConnectionError,
             ReadTimeoutError, NoCredentialsError, PartialCredentialsError,
+            ParamValidationError, ProfileNotFound, SSLError, ProxyConnectionError,
+            ConnectionClosedError,
         )
-        if isinstance(error, (NoCredentialsError, PartialCredentialsError)):
+        if isinstance(error, (NoCredentialsError, PartialCredentialsError, ProfileNotFound)):
             return "credentials_unavailable", False
-        if isinstance(error, (ConnectTimeoutError, ReadTimeoutError, EndpointConnectionError)):
+        if isinstance(error, ParamValidationError):
+            return "model_or_request_unavailable", False
+        if isinstance(error, (ConnectTimeoutError, ReadTimeoutError, EndpointConnectionError,
+                              SSLError, ProxyConnectionError, ConnectionClosedError)):
             return "request_timeout_or_endpoint_unavailable", True
         if isinstance(error, ClientError):
             code = error.response.get("Error", {}).get("Code", "")

@@ -154,6 +154,238 @@ def test_timeout_access_denied_and_throttling_classification():
     assert classify_bedrock_error(client_error("ThrottlingException"))==("throttled",True)
 
 
+def test_missing_sdk_dependency_keeps_initialization_category_and_sanitized_evidence(caplog):
+    def missing_dependency(**kwargs):
+        raise ModuleNotFoundError("private secret must not appear", name="dateutil")
+
+    reservations = []
+    sdk = BedrockConverse(
+        _settings(), session_factory=missing_dependency,
+        budget_reserver=lambda run_id, tokens: reservations.append((run_id, tokens)),
+    )
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id="offline", system="private prompt", payload={},
+                        response_type=AgentDecision)
+    error = caught.value
+    assert error.category == "client_configuration"
+    assert error.diagnostics["stage"] == "client_initialization"
+    assert error.diagnostics["exception_type"] == "ModuleNotFoundError"
+    assert error.diagnostics["missing_module"] == "dateutil"
+    assert error.diagnostics["response_received"] is False
+    assert error.diagnostics["remote_outcome_unknown"] is False
+    assert len(reservations) == 1
+    assert "private" not in json.dumps(error.diagnostics)
+    assert "private" not in caplog.text
+
+
+def test_client_initialization_uses_configured_region_profile_and_one_sdk_attempt():
+    seen = {}
+    fake = FakeConverseClient(_response({
+        "decision": "NO_OP", "resource": "service-a", "proposed_delta": 0,
+        "reason": "No change.", "evidence_references": ["resource:service-a"], "uncertainties": [],
+    }))
+
+    class Session:
+        def client(self, name, **kwargs):
+            seen["service"] = name
+            seen["client"] = kwargs
+            return fake
+
+    def factory(**kwargs):
+        seen["session"] = kwargs
+        return Session()
+
+    sdk = BedrockConverse(
+        _settings(model_id="us.amazon.nova-micro-v1:0", region="us-east-2", profile="example"),
+        session_factory=factory, budget_reserver=lambda *args: None,
+    )
+    sdk.invoke_json(run_id="offline", system="s", payload={}, response_type=AgentDecision)
+    assert seen["session"] == {"profile_name": "example", "region_name": "us-east-2"}
+    assert seen["service"] == "bedrock-runtime"
+    assert seen["client"]["region_name"] == "us-east-2"
+    assert seen["client"]["config"].retries["total_max_attempts"] == 1
+    assert fake.calls[0]["modelId"] == "us.amazon.nova-micro-v1:0"
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        ("AccessDeniedException", "access_denied"),
+        ("ValidationException", "model_or_request_unavailable"),
+        ("ResourceNotFoundException", "model_or_request_unavailable"),
+        ("ModelNotReadyException", "model_temporarily_unavailable"),
+        ("ModelErrorException", "bedrock_service_error"),
+    ],
+)
+def test_aws_error_details_are_safe_and_reservation_is_not_retried(code, expected, caplog):
+    from botocore.exceptions import ClientError
+    aws_error = ClientError({
+        "Error": {"Code": code, "Message": "private request and credential"},
+        "ResponseMetadata": {"HTTPStatusCode": 403, "RequestId": "12345678-1234"},
+    }, "Converse")
+    client = FakeConverseClient(error=aws_error)
+    reservations = []
+    sdk = _sdk(client, budget_reserver=lambda run_id, tokens: reservations.append(run_id))
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id="offline", system="private prompt", payload={},
+                        response_type=AgentDecision)
+    error = caught.value
+    assert error.category == expected
+    assert error.diagnostics["aws_error_code"] == code
+    assert error.diagnostics["http_status"] == 403
+    assert error.diagnostics["request_id"] == "12345678-1234"
+    assert error.diagnostics["stage"] == "converse_request"
+    assert error.diagnostics["response_received"] is True
+    assert error.diagnostics["remote_outcome_unknown"] is True
+    assert "private" not in json.dumps(error.diagnostics)
+    assert "private" not in caplog.text
+    with pytest.raises(BedrockProviderError, match="call_limit_exceeded"):
+        sdk.invoke_json(run_id="offline", system="s", payload={}, response_type=AgentDecision)
+    assert reservations == ["offline"] and len(client.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("error_name", "timeout"),
+    [
+        ("ReadTimeoutError", "read"),
+        ("ConnectTimeoutError", "connect"),
+        ("EndpointConnectionError", None),
+        ("SSLError", None),
+    ],
+)
+def test_transport_errors_are_classified_without_disclosing_endpoint(error_name, timeout):
+    from botocore import exceptions
+    cls = getattr(exceptions, error_name)
+    kwargs = {"endpoint_url": "https://private.example"}
+    if error_name == "SSLError":
+        kwargs["error"] = "private certificate"
+    client = FakeConverseClient(error=cls(**kwargs))
+    sdk = _sdk(client)
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id="offline", system="s", payload={}, response_type=AgentDecision)
+    assert caught.value.category == "request_timeout_or_endpoint_unavailable"
+    assert caught.value.diagnostics["timeout"] == timeout
+    assert caught.value.diagnostics["response_received"] is False
+    assert caught.value.diagnostics["remote_outcome_unknown"] is True
+    assert "private" not in json.dumps(caught.value.diagnostics)
+
+
+def test_sdk_parameter_validation_is_reported_without_request_details():
+    from botocore.exceptions import ParamValidationError
+    sdk = _sdk(FakeConverseClient(error=ParamValidationError(report="private prompt")))
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id="offline", system="s", payload={}, response_type=AgentDecision)
+    assert caught.value.category == "model_or_request_unavailable"
+    assert caught.value.diagnostics["exception_type"] == "ParamValidationError"
+    assert "private" not in json.dumps(caught.value.diagnostics)
+
+
+def _stubbed_runtime():
+    import boto3
+    from botocore.config import Config
+    from botocore.stub import Stubber
+
+    session = boto3.Session(aws_access_key_id="offline", aws_secret_access_key="offline",
+                            region_name="us-east-2")
+    client = session.client("bedrock-runtime", config=Config(retries={"total_max_attempts": 1}))
+    return client, Stubber(client)
+
+
+def _stub_response(body):
+    return {
+        **_response(body),
+        "output": {"message": {"role": "assistant", "content": [{"text": json.dumps(body)}]}},
+        "usage": {"inputTokens": 123, "outputTokens": 45, "totalTokens": 168},
+        "metrics": {"latencyMs": 1},
+    }
+
+
+@pytest.mark.parametrize(("role", "delta"), [("cost", -1), ("performance", 1)])
+def test_real_sdk_stub_validates_each_agent_and_nova_profile(role, delta):
+    from botocore.stub import ANY
+    from botocore.validate import validate_parameters
+    client, stubber = _stubbed_runtime()
+    model = "us.amazon.nova-micro-v1:0"
+    body = {"decision": "PROPOSE", "resource": "service-a", "proposed_delta": delta,
+            "reason": "Based on the observed simulator resource.",
+            "evidence_references": ["resource:service-a"], "uncertainties": []}
+    expected = {"modelId": model, "system": ANY, "messages": ANY,
+                "inferenceConfig": {"maxTokens": 512, "temperature": 0.1}}
+    stubber.add_response("converse", _stub_response(body), expected)
+    observed = {}
+    client.meta.events.register(
+        "before-parameter-build.bedrock-runtime.Converse",
+        lambda params, **kwargs: observed.update(params),
+    )
+    sdk = _sdk(client, _settings(model_id=model, region="us-east-2", max_output_tokens=512))
+    with stubber:
+        decision, usage = BedrockAgentReasoner(sdk).decide(
+            role, {"id": "service-a", "capacity": 5, "recent_effects": []}, "offline"
+        )
+    assert decision.proposed_delta == delta
+    validate_parameters(observed, client.meta.service_model.operation_model("Converse").input_shape)
+    assert json.loads(observed["messages"][0]["content"][0]["text"])["agent_role"] == role
+    assert usage["model_id"] == model and usage["input_tokens"] == 123 and usage["output_tokens"] == 45
+    assert "toolConfig" not in observed
+    stubber.assert_no_pending_responses()
+
+
+def test_real_sdk_stub_validates_investigator_citations_and_usage(monkeypatch):
+    import botkernel.bedrock as module
+    from botocore.stub import ANY
+    from botkernel.investigator import ai_assist
+
+    action = "00000000-0000-0000-0000-000000000001"
+    body = {"explanation": "Effects were observed.", "hypotheses": ["A loop may exist."],
+            "cross_agent_analysis": "Two agents changed capacity.",
+            "instability_mechanism": "Changes reversed.", "supporting_references": [action],
+            "contradictory_or_missing_evidence": [], "preventive_actions": [],
+            "confidence_caveats": ["Correlation is not causation."]}
+    client, stubber = _stubbed_runtime()
+    model = "us.amazon.nova-micro-v1:0"
+    stubber.add_response("converse", _stub_response(body), {
+        "modelId": model, "system": ANY, "messages": ANY,
+        "inferenceConfig": {"maxTokens": 512, "temperature": 0.1},
+    })
+    sdk = _sdk(client, _settings(model_id=model, region="us-east-2", max_output_tokens=512))
+    monkeypatch.setattr(module, "BedrockConverse", lambda: sdk)
+    with stubber:
+        report = ai_assist({**_investigation_state(), "provider": "bedrock", "run_id": "offline"})["report"]
+    assert report["ai_analysis"]["supporting_references"] == [action]
+    assert report["findings"][-1]["classification"] == "HYPOTHESIS"
+    assert report["usage"]["input_tokens"] == 123 and report["usage"]["output_tokens"] == 45
+    stubber.assert_no_pending_responses()
+
+
+def test_malformed_converse_response_has_safe_response_diagnostics():
+    sdk = _sdk(FakeConverseClient({"stopReason": "end_turn", "output": {}}))
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id="offline", system="s", payload={}, response_type=AgentDecision)
+    assert caught.value.category == "invalid_model_response"
+    assert caught.value.diagnostics["stage"] == "response_validation"
+    assert caught.value.diagnostics["response_received"] is True
+
+
+def test_investigation_worker_returns_sanitized_provider_diagnostics(monkeypatch, capsys):
+    import io
+    import botkernel.investigation_worker as worker
+    import botkernel.investigator as investigator
+
+    diagnostics = {"category": "client_configuration", "missing_module": "dateutil"}
+
+    class FailedGraph:
+        def invoke(self, request):
+            raise BedrockProviderError("client_configuration", diagnostics=diagnostics)
+
+    monkeypatch.setattr(worker, "install_parent_death_guard", lambda: None)
+    monkeypatch.setattr(investigator, "investigation_graph", FailedGraph())
+    monkeypatch.setattr("sys.stdin", io.StringIO('{"incident_id":1,"run_id":"offline"}'))
+    worker.main()
+    assert json.loads(capsys.readouterr().out) == {
+        "error_category": "client_configuration", "error_diagnostics": diagnostics,
+    }
+
+
 def test_agent_reasoner_rejects_forged_refs_direction_and_bounds():
     class Client:
         settings=_settings()

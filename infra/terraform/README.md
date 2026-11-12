@@ -1,6 +1,6 @@
 # AWS single-host demo foundation
 
-This Terraform configuration describes an isolated, nonproduction portfolio demo using one Amazon Linux 2023 EC2 host running Docker Compose; PostgreSQL, single-node Kafka, Redis, workers, agents and the dashboard run as containers on persistent encrypted EBS. Earlier private deployment was documented, but current cloud state is **unknown**. This is not an HA or production database/broker design.
+This Terraform configuration describes an isolated, nonproduction portfolio demo using one Amazon Linux 2023 EC2 host running Docker Compose; PostgreSQL, single-node Kafka, Redis, workers, agents and the dashboard run as containers on persistent encrypted EBS. Current-source images were deployed and a deterministic incident/investigation was verified on 2026-11-12; the instance was then stopped with its encrypted volume retained. This is not an HA or production database/broker design.
 
 ## Resources and defaults
 
@@ -11,7 +11,7 @@ This Terraform configuration describes an isolated, nonproduction portfolio demo
 - Two private ECR repositories (backend and dashboard), immutable tags, push scanning and deletion protection.
 - A CloudWatch log group with bounded retention (30 days by default). No custom metrics, Container Insights, load balancer, NAT Gateway, RDS, managed Kafka, or EKS is created.
 
-The public-routing subnet and public IPv4 are used only for outbound HTTPS (SSM agent, ECR, logs and optional inference); ingress is empty. The private dashboard/API is exposed only on the host loopback by the deployment Compose file and is accessed through an IAM-authorized SSM port-forward. This avoids NAT Gateway and interface endpoint hourly costs but retains the public IPv4 charge and requires careful outbound egress control. PostgreSQL, Kafka, Redis and worker ports are never published. The deployment identity needs narrowly scoped SSM session permissions; the EC2 role is not the deployment identity.
+The public-routing subnet and public IPv4 are used only for outbound HTTPS (SSM agent, ECR, logs and optional inference); ingress is empty. The dashboard is published only on host loopback for an IAM-authorized SSM port-forward. Its Compose service joins both the internal backend and egress networks: on the EC2 Docker runtime, membership in the internal network alone left the configured loopback port unpublished. PostgreSQL, Kafka, Redis and worker ports are never published. The deployment identity needs narrowly scoped SSM session permissions; the EC2 role is not the deployment identity.
 
 ## Local static validation
 
@@ -32,7 +32,7 @@ terraform validate
 2. Copy `terraform.tfvars.example` to ignored `terraform.tfvars`, replace placeholders locally, review `terraform plan` and the generated IAM/network policy, then obtain explicit deployment approval before any apply.
 3. Use a human deployment identity kept outside this runtime role. The human identity should be limited to the approved Terraform resource set and SSM `StartSession`/port-forward access to the resulting instance; the EC2 role must not administer infrastructure.
 4. Locally build tagged backend and dashboard images with `scripts\build-aws-demo.ps1`; inspect them and scan findings. A future, separately approved image-push step must authenticate with the operator's short-lived AWS identity and push to the two private ECR outputs. Never put credentials in the images or frontend bundle.
-5. Connect through SSM, copy `compose.aws-demo.yaml` and the runtime config to `/opt/botkernel`, create the two host-only secret files with `sudo scripts/create-aws-demo-secrets.sh`, install/verify Docker Compose v2 using the current [official Linux instructions](https://docs.docker.com/compose/install/linux/), then run `scripts/start-aws-demo.sh` with the required Docker/AWS permissions. The AL2023 bootstrap installs Docker Engine only; Compose plugin availability is not assumed. The helper rejects duplicate or unsafe mode flags and validates Compose before ECR login, but is a template and has not been run on EC2.
+5. Connect through SSM, copy `compose.aws-demo.yaml` and the runtime config to `/opt/botkernel`, create the two host-only secret files with `sudo scripts/create-aws-demo-secrets.sh`, install/verify Docker Compose v2 using the current [official Linux instructions](https://docs.docker.com/compose/install/linux/), then run `scripts/start-aws-demo.sh` with the required Docker/AWS permissions. The AL2023 bootstrap installs Docker Engine only; Compose plugin availability is not assumed. The helper rejects duplicate or unsafe mode flags and validates Compose before ECR login.
 6. On the operator workstation, after separately approved provisioning and IAM authorization, run:
 
    ```sh
@@ -42,7 +42,7 @@ terraform validate
    Visit `http://127.0.0.1:8080`. Dashboard requests go through its private Nginx `/api/` proxy to FastAPI. No API port is published on the host. SSM port-forwarding payloads are not logged like shell sessions; audit session start/stop metadata through CloudTrail and do not treat it as command-content auditing.
 7. Verify `/health`, `/ready`, PostgreSQL/Kafka/Redis health, simulated telemetry labeling, worker heartbeats, and persisted checkpoints. Back up PostgreSQL and export any needed Kafka, SQLite checkpoint, investigation, benchmark and observability artifacts before upgrades or teardown.
 
-The runtime config points Docker's `awslogs` driver to the Terraform-created log group. Browser/operator endpoints have no application authentication; their safety boundary is IAM-authorized SSM access and loopback-only host binding. This is acceptable only for a private single-operator portfolio demo. Do not expose it through a public IP, load balancer, public DNS or a shared tunnel. A public product needs authentication/authorization, CSRF protections, TLS, audit controls and a separate review before exposure.
+The runtime config points Docker's `awslogs` driver to the Terraform-created log group. Operational API routes require an operator bearer token, but the dashboard shell and health endpoints do not. Keep the entire deployment behind IAM-authorized SSM access and loopback-only host binding. Do not expose it through a public IP, load balancer, public DNS or a shared tunnel; a public product needs additional security controls and review.
 
 ## Superseded historical cost model (t3.xlarge; do not use for current planning)
 
@@ -60,24 +60,24 @@ Rates and regional applicability must be rechecked in the AWS Pricing Calculator
 
 Sources checked 2026-11-10: [EC2 T3 pricing and specifications](https://aws.amazon.com/ec2/instance-types/t3/), [EBS pricing](https://aws.amazon.com/ebs/pricing/), [VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), [CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/), [ECR pricing](https://aws.amazon.com/ecr/pricing/), and [AWS Pricing Calculator](https://calculator.aws/). These public pricing pages are subject to change. Pricing page ingestion/storage rates were not used in the subtotal.
 
-## Bedrock live acceptance (not executed)
+## Bedrock live acceptance
 
-No account access, model authorization or live request has been checked; the EC2 instance state is unknown. The acceptance runner and current preflight/approval procedure are maintained in [BEDROCK_ACCEPTANCE.md](../../docs/BEDROCK_ACCEPTANCE.md). A low-cost candidate for later review is Amazon Nova Micro through `us.amazon.nova-micro-v1:0` in `us-east-2`; exact availability, regional routing, permissions and current price remain unverified. Keep all flags false; Terraform's separate Bedrock policy defaults off.
+On 2026-11-12, a single local Cost attempt against `us.amazon.nova-micro-v1:0` ended with `bedrock_client_error` and an unknown outcome; no response or usage was observed. Performance and Investigator were not attempted. The EC2 role had no Bedrock permission, and no IAM changes were made. See [BEDROCK_ACCEPTANCE.md](../../docs/BEDROCK_ACCEPTANCE.md); keep all flags false and do not retry an ambiguous request automatically.
 
 Before a later live test, present and approve: account/profile identity without credential disclosure; source region and cross-region routing implications; exact inference-profile ID and ARN; current account access/IAM; current input/output rates; request size/token estimates; and a maximum total spend in dollars. Do not use Provisioned Throughput. Authorization to run model calls is separate from Terraform apply approval.
 
 After separate deployment, IAM and inference approvals, run advisory-only tests with `AI_ACTION_EXECUTION_ENABLED=false`, `CLOUD_MODE=mock`, `AWS_DEPLOY_ALLOWED=false`, at most one request each for Cost, Performance and a COMPLETE evidence-backed investigation (3 calls total), 512 output tokens/call, 20,000 estimated input+output tokens/day, and a 10-second timeout. Preserve proposal/report idempotency records. Capture actual model/profile ID, token usage, validated result and provider provenance; if the model correctly returns NO_OP or abstains, do not force an action. A proposed experiment ceiling is $0.01 total, but software budgets and AWS Budgets alerts are not billing caps.
 
-AWS references: [Nova Micro model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-micro.html), [US cross-region inference rules](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html), [AWS Ohio Nova pricing example](https://aws.amazon.com/blogs/machine-learning/effective-cost-optimization-strategies-for-amazon-bedrock/), and [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html). Public documentation gives $0.000035/1,000 input tokens and $0.00014/1,000 output tokens for Nova Micro in its Ohio example. This would make 20,000 total tokens cost at most about $0.0028 if all were output; the proposed three-call experiment ceiling is $0.01. These estimates do not account for model/profile/account restrictions and are not a billing cap. No live call or account-level access check has occurred.
+AWS references: [Nova Micro model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-micro.html), [US cross-region inference rules](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html), [AWS Ohio Nova pricing example](https://aws.amazon.com/blogs/machine-learning/effective-cost-optimization-strategies-for-amazon-bedrock/), and [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html). The 2026-11-12 Ohio rate check returned $0.000035/1,000 input tokens and $0.00014/1,000 output tokens. The proposed three-call $0.01 application budget is not an AWS billing cap, and actual charge for the ambiguous attempt is unknown.
 
 ## State and teardown warning
 
-The encrypted root EBS volume has `delete_on_termination=false`; Docker named volumes therefore survive instance termination but become an unattached billable volume. ECR repositories and the CloudWatch log group have Terraform deletion protection. Before any future destroy, take and verify an encrypted snapshot and/or application-consistent PostgreSQL backup, export Kafka/checkpoints/reports/benchmark outputs, inspect the plan, and retain the data volume, repositories and logs unless their removal is explicitly approved. No backup/restore or cloud deployment has been tested.
+The encrypted root EBS volume has `delete_on_termination=false`; Docker named volumes therefore survive instance termination but become an unattached billable volume. ECR repositories and the CloudWatch log group have Terraform deletion protection. Before the 2026-11-12 migration, a PostgreSQL dump was restored into a separate verification database and checkpoint files were archived; this was not a full disaster-recovery test and predates the new demo incident. Before any future destroy, independently preserve and verify all current data, inspect the plan, and retain the volume, repositories and logs unless removal is explicitly approved.
 
 
 ## Preflight for the intended Ohio account (commands are for the operator)
 
-The deployment default is `us-east-2`; the Bedrock region is intentionally blank and must be selected separately after model support and price are checked. These read-only commands are prepared for a later user-authorized verification session. They were **not run** here. They use the existing `botkernel-dev` profile and never print credential material:
+The deployment default is `us-east-2`; the Bedrock region must be selected separately after model support and price are checked. These read-only reference commands use the existing `botkernel-dev` profile and do not print credential material. The 2026-11-12 acceptance ran a targeted subset, not this entire sequence.
 
 ```powershell
 $ProfileName = 'botkernel-dev'
@@ -100,17 +100,19 @@ aws iam simulate-principal-policy --profile $ProfileName --policy-source-arn $Pr
 aws iam simulate-principal-policy --profile $ProfileName --policy-source-arn $PrincipalArn --action-names bedrock:InvokeModel --resource-arns '<exact-approved-inference-profile-arn>' --output json
 ```
 
-Set `$ExpectedAccount` locally to the owner-confirmed account ID, compare it with the returned Account, and stop on mismatch; do not commit a personal account ID into public source. `aws configure get region` reads local CLI config; explicitly supplied `--region` controls service calls. The SSM public parameter and image description confirm current AL2023 x86_64 AMI metadata, not launch success. Quotas do not prove AZ capacity or IAM access. IAM simulation itself is an AWS API call; the wildcard is only a coarse check. Use a reviewed principal/resource ARN and inspect SCPs, boundaries and conditions. Regional model inventory is not proof of account authorization. The candidate Nova Micro model card documents Converse but not native structured outputs, so application-side Pydantic validation is required. The Ohio geographic profile and IAM need account-specific checks. These commands are approval-gated and have not been run.
+Set `$ExpectedAccount` locally to the owner-confirmed account ID, compare it with the returned Account, and stop on mismatch; do not commit a personal account ID into public source. `aws configure get region` reads local CLI config; explicitly supplied `--region` controls service calls. The SSM public parameter and image description confirm current AL2023 x86_64 AMI metadata, not launch success. Quotas do not prove AZ capacity or IAM access. IAM simulation itself is an AWS API call; the wildcard is only a coarse check. Use a reviewed principal/resource ARN and inspect SCPs, boundaries and conditions. Regional model inventory is not proof of account authorization. The candidate Nova Micro model card documents Converse but not native structured outputs, so application-side Pydantic validation is required. The Ohio geographic profile and IAM need account-specific checks.
 
-Official on-demand price-list lookup can be prepared after selecting exact SKUs/regions. The AWS Price List endpoint is a read-only AWS API and has not been called:
+An official on-demand price-list lookup can be prepared after selecting exact SKUs/regions. This historical example is for `t3.large`, not the deployed instance:
 
 ```powershell
 aws pricing get-products --profile $ProfileName --region us-east-1 --service-code AmazonEC2 --filters 'Type=TERM_MATCH,Field=location,Value=US East (Ohio)' 'Type=TERM_MATCH,Field=instanceType,Value=t3.large' 'Type=TERM_MATCH,Field=operatingSystem,Value=Linux' 'Type=TERM_MATCH,Field=tenancy,Value=Shared' 'Type=TERM_MATCH,Field=preInstalledSw,Value=NA' 'Type=TERM_MATCH,Field=capacitystatus,Value=Used' --max-results 10 --output json
 ```
 
-The Price List API's control plane uses `us-east-1` even when filtering a product in Ohio. Inspect the returned On-Demand terms and unit before using a rate; this command is not an account or billing lookup. The exact Ohio EC2 price is not verified until this query is run after approval. Run an equivalent query for EBS, public IPv4 and ECR only after checking each service's catalog schema. Use AWS Pricing Calculator for the final region/service estimate. No command here is authorized to provision or alter resources.
+The Price List API's control plane uses `us-east-1` even when filtering a product in Ohio. Inspect returned On-Demand terms and units; this command is not an account or billing lookup. Use AWS Pricing Calculator for a complete region/service estimate. No command here is authorized to provision or alter resources.
 
-## Current t3.large cost planning estimate (not a quote)
+## Historical t3.large cost planning estimate (not the deployed instance)
+
+The actual stopped instance is `m7i-flex.large`; the 2026-11-12 Ohio On-Demand rate checked for it was $0.09576/hour. Its roughly 48.37 hours since launch implied about $4.63 in compute before discounts and other charges; the approximately 23-minute live acceptance/deployment window implied about $0.037. These are estimates, not actual billing, and exclude EBS, public IPv4, ECR, CloudWatch, transfer, taxes and any unknown Bedrock charge.
 
 | Type | vCPU | RAM | Published AWS Linux rate (us-east-1 only) | Fit for this stack |
 |---|---:|---:|---:|---|
@@ -145,7 +147,41 @@ aws sts get-caller-identity --profile $ProfileName --query '{Account:Account,Arn
 docker compose --env-file infra/deploy/runtime.env.example -f compose.aws-demo.yaml config --quiet
 ```
 
-After separate explicit deployment approval, the future sequence is: create a local ignored tfvars with reviewed account/AMI/region, inspect a saved Terraform plan, obtain approval for its exact resource diff, then apply; push immutable image tags to the Terraform ECR outputs using short-lived credentials; copy the compose/runtime files and host-only secrets to EC2 over SSM; start with `BOTKERNEL_DEPLOY_APPROVED=true sudo -E /opt/botkernel/scripts/start-aws-demo.sh`. No script should be invoked as part of ordinary local development. The current helper validates all cloud/inference/action flags remain false before ECR login and Compose startup.
+For a new deployment, obtain explicit approval for the exact resource diff before applying Terraform, pushing images or starting services. The existing stopped instance can be resumed as described below; no Terraform operation is needed for that.
+
+### Resume the existing private demo
+
+Only after separate owner authorization, confirm the intended account and existing instance. The [official Windows Session Manager plugin installer](https://docs.aws.amazon.com/systems-manager/latest/userguide/install-plugin-windows.html) requires Administrator rights; install it and verify `session-manager-plugin --version` before attempting a tunnel. Then, with the owner-confirmed values:
+
+```powershell
+$ProfileName = 'botkernel-dev'
+$Region = 'us-east-2'
+$InstanceId = '<owner-confirmed-existing-instance-id>'
+aws sts get-caller-identity --profile $ProfileName --region $Region
+aws ec2 start-instances --profile $ProfileName --region $Region --instance-ids $InstanceId
+aws ec2 wait instance-running --profile $ProfileName --region $Region --instance-ids $InstanceId
+aws ssm describe-instance-information --profile $ProfileName --region $Region --filters "Key=InstanceIds,Values=$InstanceId" --query 'InstanceInformationList[0].PingStatus' --output text
+# Wait until PingStatus is Online before opening the shell.
+aws ssm start-session --profile $ProfileName --region $Region --target $InstanceId
+```
+
+In the SSM shell, start only the existing demo services (not the continuous LangGraph agents):
+
+```bash
+sudo docker compose --env-file /opt/botkernel/runtime.env -f /opt/botkernel/compose.aws-demo.yaml up -d postgres redis kafka init api publisher worker recovery controller dashboard
+sudo docker compose --env-file /opt/botkernel/runtime.env -f /opt/botkernel/compose.aws-demo.yaml ps
+curl --fail http://127.0.0.1:8080/api/ready
+```
+
+In a second PowerShell window using the same reviewed variables, open the private tunnel:
+
+```powershell
+aws ssm start-session --profile $ProfileName --region $Region --target $InstanceId --document-name AWS-StartPortForwardingSession --parameters "portNumber=8080,localPortNumber=8080"
+```
+
+Visit `http://127.0.0.1:8080/app`, sign in with the existing operator credential, and review Agent Fleet, Effect Graph, Incidents and Experiments, including the persisted incident and investigation. Never put the credential in a command, URL or shared tunnel. The resume and cloud browser tunnel were not re-tested after the shutdown. Do not enable Bedrock or model-driven actions for the deterministic demo.
+
+After confirming no other sessions or workloads depend on the instance and that actions and unpublished outbox entries are quiescent, stop only these services in the SSM shell with `sudo docker compose --env-file /opt/botkernel/runtime.env -f /opt/botkernel/compose.aws-demo.yaml stop`. Close the tunnel and shell; only with separate authorization, stop the instance with `aws ec2 stop-instances --profile $ProfileName --region $Region --instance-ids $InstanceId`. Do not use `down -v` or terminate the instance.
 
 Linux EC2 checks after a separately approved launch:
 
@@ -202,4 +238,4 @@ The commands assume the approved operator has already copied artifacts securely 
 
 ### Deployment status
 
-Static preparation is not a deployment. AWS identity/quota/IAM/model access, an Ohio AMI, image push, EC2 startup, SSM, CloudWatch delivery, Bedrock and restore have not been verified. Publicly reachable host addresses are for outbound traffic only; the security group has no ingress. Current source requires operator credentials, but an existing deployment may still run an older unauthenticated image; keep it behind the described single-operator SSM access boundary.
+On 2026-11-12, current-source backend/dashboard images ran on the existing EC2 instance with migration `0009`, private operator and scoped-agent authentication, healthy PostgreSQL/Kafka/Redis, and CloudWatch delivery. Eight demo actions each produced one simulator effect; the incident recurred after verified recovery and its deterministic evidence-backed investigation was persisted and retrieved idempotently. The private host-loopback dashboard and authenticated proxy were checked, not a browser or SSM tunnel. The instance is stopped, not terminated; encrypted EBS, Docker volumes, image repositories, logs, backups and demo evidence remain. Compute charges ceased, but retained resources can still incur charges.

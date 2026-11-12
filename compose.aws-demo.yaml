@@ -309,7 +309,7 @@ services:
   dashboard:
     image: ${BOTKERNEL_DASHBOARD_IMAGE:-botkernel-dashboard:local}
     ports: ["127.0.0.1:${BOTKERNEL_DASHBOARD_PORT:-8080}:8080"]
-    networks: [backend]
+    networks: [backend, egress]
     depends_on:
       api:
         condition: service_healthy

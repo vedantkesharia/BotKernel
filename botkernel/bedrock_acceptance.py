@@ -420,6 +420,8 @@ def run_acceptance(
                             "error_category": category,
                             "run_id": case_run_id,
                         }
+                        if getattr(error, "diagnostics", None):
+                            result["cases"][role]["diagnostics"] = error.diagnostics
                         raise AcceptanceError(category) from error
                 finally:
                     if previous_agent_resource is None:
@@ -479,8 +481,9 @@ def run_acceptance(
             idempotency_key = f"bedrock-acceptance:{run_id}:investigator"
             request = {"idempotency_key": idempotency_key, "provider": "bedrock"}
             try:
+                # The worker may run for 45 seconds plus a 5-second termination grace.
                 response = client.post(
-                    f"/incidents/{incident_id}/investigations", json=request
+                    f"/incidents/{incident_id}/investigations", json=request, timeout=75
                 )
                 response.raise_for_status()
                 investigation = response.json()

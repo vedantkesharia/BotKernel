@@ -239,6 +239,22 @@ class JsonLogFormatter(logging.Formatter):
             value = getattr(record, key.replace(".", "_"), None)
             if isinstance(value, (str, bool, int, float)):
                 result[key] = value
+        if event in {"bedrock_failure", "investigation_bedrock_failure"}:
+            diagnostics = getattr(record, "bedrock_diagnostics", None)
+            if isinstance(diagnostics, dict):
+                safe = {}
+                for key in ("category", "stage", "exception_type", "missing_module", "aws_error_code",
+                            "request_id", "boto3_version", "botocore_version", "timeout"):
+                    value = diagnostics.get(key)
+                    if value is None or (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", value)):
+                        safe[key] = value
+                status = diagnostics.get("http_status")
+                if status is None or (type(status) is int and 100 <= status <= 599):
+                    safe["http_status"] = status
+                for key in ("response_received", "remote_outcome_unknown"):
+                    if type(diagnostics.get(key)) is bool:
+                        safe[key] = diagnostics[key]
+                result["bedrock"] = safe
         if event == "http_access":
             method = record.args[1]
             status = record.args[4]

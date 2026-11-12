@@ -6,6 +6,42 @@ from botkernel.api import app
 from botkernel.core import engine
 
 
+def test_investigator_failure_diagnostics_are_logged_and_replay_stays_failed(monkeypatch, caplog):
+    import json
+    import uuid
+    import botkernel.investigation_service as service
+    from botkernel.observability import JsonLogFormatter
+
+    resource = "invest-diagnostic-" + uuid.uuid4().hex[:12]
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO resources(id,capacity,version) VALUES(:r,4,0)"), {"r": resource})
+        incident = c.execute(
+            text("INSERT INTO incidents(resource,score,evidence) VALUES(:r,0.8,CAST('{}' AS jsonb)) RETURNING id"),
+            {"r": resource},
+        ).scalar_one()
+    diagnostics = {
+        "category": "access_denied", "stage": "converse_request",
+        "aws_error_code": "AccessDeniedException", "http_status": 403,
+        "response_received": True, "remote_outcome_unknown": True,
+    }
+    calls = []
+
+    def failed_worker(*args):
+        calls.append(1)
+        return {"error_category": "access_denied", "error_diagnostics": diagnostics}
+
+    monkeypatch.setattr(service, "execute", failed_worker)
+    client = TestClient(app, headers=operator_headers())
+    body = {"idempotency_key": "diagnostic-key", "provider": "bedrock"}
+    first = client.post(f"/incidents/{incident}/investigations", json=body)
+    replay = client.post(f"/incidents/{incident}/investigations", json=body)
+    assert first.json()["status"] == "FAILED"
+    assert first.json()["error_category"] == "access_denied"
+    assert replay.json() == first.json() and calls == [1]
+    record = next(r for r in caplog.records if getattr(r, "event", None) == "investigation_bedrock_failure")
+    assert json.loads(JsonLogFormatter().format(record))["bedrock"]["aws_error_code"] == "AccessDeniedException"
+
+
 def test_timeout_terminates_process_fences_replay_and_allows_next(monkeypatch, tmp_path):
     import os
     import time

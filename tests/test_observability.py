@@ -97,6 +97,25 @@ def test_json_logs_correlate_trace_without_emitting_payload_or_secrets():
     assert "payload" not in output
 
 
+def test_bedrock_logs_allow_only_sanitized_structured_diagnostics():
+    record = logging.LogRecord("botkernel.bedrock", logging.WARNING, __file__, 1,
+                               "private prompt and credentials", (), None)
+    record.event = "bedrock_failure"
+    record.bedrock_diagnostics = {
+        "category": "access_denied", "stage": "converse_request",
+        "aws_error_code": "AccessDeniedException", "http_status": 403,
+        "exception_type": "ClientError", "request_id": "abc-123",
+        "response_received": True, "remote_outcome_unknown": True,
+        "private_payload": "secret", "timeout": "secret with spaces",
+    }
+    parsed = json.loads(JsonLogFormatter().format(record))
+    assert parsed["bedrock"]["aws_error_code"] == "AccessDeniedException"
+    assert parsed["bedrock"]["http_status"] == 403
+    assert parsed["bedrock"]["remote_outcome_unknown"] is True
+    assert "secret" not in json.dumps(parsed)
+    assert "private" not in json.dumps(parsed)
+
+
 def test_http_access_logs_are_json_without_raw_paths():
     record = logging.LogRecord(
         "uvicorn.access",

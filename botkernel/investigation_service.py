@@ -1,9 +1,11 @@
 """Idempotent investigation execution; lease ownership fences stale workers."""
-import hashlib, json, uuid, os
+import hashlib, json, uuid, os, logging
 from sqlalchemy import text
 from botkernel.core import engine
 from botkernel.investigator import Investigation, investigation_graph
 from botkernel.investigation_process import execute, execution_limits, InvestigationTimeout
+
+log = logging.getLogger("botkernel.investigation_service")
 
 class MissingIncident(Exception): pass
 class Conflict(Exception): pass
@@ -40,6 +42,11 @@ def start(incident_id, key, provider):
       result=execute(incident_id,provider,report_id,deadline,grace)
       if 'error_category' in result:
           from botkernel.bedrock import BedrockProviderError
+          if result.get('error_diagnostics'):
+              log.warning('investigation bedrock failure', extra={
+                  'event':'investigation_bedrock_failure',
+                  'bedrock_diagnostics':result['error_diagnostics'],
+              })
           raise BedrockProviderError(result['error_category'])
       payload=result['report']
       payload=Investigation.model_validate(payload).model_dump(mode='json')

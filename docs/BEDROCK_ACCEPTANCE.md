@@ -1,6 +1,26 @@
-# Bedrock acceptance preparation
+# Bedrock acceptance
 
-Status: **local preparation only**. No AWS identity, EC2, billing, IAM, Bedrock profile, pricing, or live inference was queried for this work. The previous EC2 runtime window expired; actual instance state is **UNKNOWN**. Do not treat any CLI examples below as authorization.
+## Bounded live attempt (2026-11-12)
+
+The approved operator profile was verified against the intended project account in `us-east-2`. The `us.amazon.nova-micro-v1:0` inference profile and backing model were ACTIVE; current Ohio rates were checked at $0.000035/1,000 input and $0.00014/1,000 output tokens. IAM simulation allowed the operator profile and relevant destination models, but the EC2 role did not have Bedrock permission; no IAM changes were made. Simulation is not proof of effective authorization.
+
+The existing harness was invoked once against isolated, real PostgreSQL/Kafka fixtures using transient operator credentials. The Cost case reserved 1,812 application-estimated tokens, then recorded `FAILED_OR_OUTCOME_UNKNOWN` / `bedrock_client_error`. No Converse response, model usage or precise underlying AWS error was captured; whether AWS received or charged the request is unknown. The harness stopped before Performance and Investigator, and no retry was made. This is **not** successful live inference. Preserve the existing reservation and evidence; a further paid experiment requires fresh authorization and must not automatically retry the ambiguous request.
+
+The intended bounds were at most three calls, one SDK attempt per case, 512 output tokens per call, 20,000 application-estimated total tokens and a proposed $0.01 budget. Redis and application limits are not AWS billing caps. AI-driven action execution remained disabled. The deployed API's Bedrock, spending and action gates are disabled; the private EC2 instance was stopped after a separate deterministic demo.
+
+## Offline diagnosis and next-call proposal
+
+The original temporary SDK archive contained Boto3/Botocore but omitted the `python-dateutil` dependency, which was also absent from the target container. An offline reconstruction of that archive and environment, with network transport blocked, reproduced `ModuleNotFoundError: dateutil`; the old provider masked its initialization error as `bedrock_client_error`. This is a strong client-side explanation, not proof of the original exception: no exception was preserved, so the historical request and any charge remain unknown. The archived Botocore supported Converse; the original process used frozen credentials from the verified host identity and the intended region/profile ID. Effective IAM/model access, DNS/TLS and remote behavior were not proven by this reconstruction.
+
+The provider now preserves the client initialization category and emits allowlisted diagnostics without request content or credentials; ambiguous Converse failures remain unknown. The investigator acceptance HTTP deadline also accommodates the bounded worker deadline and termination grace. Current offline tests use the configured Nova Micro profile and mocked Botocore responses; they do not prove live model output or account access. The deployed EC2 image predates these diagnostic changes.
+
+For a separately authorized **new** experiment, use a complete compatible Boto3/Botocore installation with all dependencies, including a credential provider compatible with the selected login method. Keep Nova Micro as the first candidate; Nova Lite and Nova 2 Lite account access, permissions, pricing and contract compliance have not been verified, and changing models does not address the SDK defect. Recheck identity, effective permissions, pricing and network readiness. Preserve the earlier 1,812-token reservation and all evidence; account for its daily call and token limits without clearing counters or reusing its idempotency key. A remaining daily allowance may be insufficient for three calls.
+
+The exact proposed runner command and gates are the `--execute-live` block below, with fresh fixtures, checkpoint and output paths; **do not execute without explicit new paid-inference authorization**. It permits at most three intended calls, one per workflow, 512 output tokens each, 20,000 estimated tokens per day and no automatic retries or model-driven actions. At the historical rates above, 20,000 all-output tokens estimate $0.0028; a three-call split with 1,536 output and 18,464 estimated input tokens estimates $0.0008613. The proposed $0.01 ceiling is not an AWS billing cap, actual usage may differ, and rates must be rechecked.
+
+This is not yet a ready-to-run three-workflow experiment: the API executes the Investigator in a separate worker process. Setting host runner variables after starting Compose does not configure that worker or give its container the host login profile. Before any authorized run, separately establish and verify a secure, short-lived credential route and complete SDK dependencies for both the host runner and API worker; configure the local API's Bedrock gates, model and limits for that bounded session without enabling model-driven actions. Do not copy long-lived credentials into an image or tracked file. Verify both processes share the intended existing budget counter and that the API can reach the Bedrock endpoint. Return its gates to disabled after the experiment. No such setup or live validation was performed in this diagnostic task.
+
+The remaining sections describe historical preparation and offline validation. Their earlier statements about unknown cloud state or approval describe those earlier sessions, not the attempt above. Examples are not authorization for new cloud changes or inference.
 
 ## Existing integration and remaining acceptance gap
 
@@ -10,9 +30,9 @@ The Cost and Performance StateGraphs use actual `/telemetry`, validate role dire
 
 The current offline tests prove those paths with mocked provider responses. They are not three live calls. `botkernel.bedrock_acceptance` wraps the actual `run_once()` Cost/Performance LangGraphs and actual investigation HTTP API as one guarded, at-most-three-call sequence. The live runner requires separate resources with real simulated telemetry and committed-effect evidence, role-specific useful telemetry, an isolated incident whose controller effect references exist in the committed graph, exact configured limits, a loopback-only API/database/Redis route, and action execution disabled. It also checks durable SQLite reasoning records against each returned decision/provenance pair. It saves incremental JSON evidence to a new, non-existing output path and refuses to reuse a checkpoint database or owner file. It makes no automatic retry after an exception or ambiguous outcome. The single same-key investigation replay is performed only after the completed report response, to verify idempotency. Its separate `--prepare-local-fixtures` mode creates fresh simulator resources and committed seed effects only when all AI/cloud gates are off; it never creates model decisions.
 
-The `--execute-live` mode is intentionally not being executed in this session. Its switch and `BOTKERNEL_BEDROCK_ACCEPTANCE_APPROVED=true` are additional software guardrails, **not user authorization**. In particular, do not set `BEDROCK_ENABLED` or `BEDROCK_SPEND_AUTHORIZED` based only on repository instructions.
+The `--execute-live` switch and `BOTKERNEL_BEDROCK_ACCEPTANCE_APPROVED=true` are additional software guardrails, **not user authorization**. Do not set `BEDROCK_ENABLED` or `BEDROCK_SPEND_AUTHORIZED` based only on repository instructions.
 
-## Local profile route, prepared but not run
+## Historical prepared local profile route
 
 The local overlay `compose.bedrock-acceptance.yaml` binds only PostgreSQL and Redis to loopback. The normal Compose API port is also loopback-bound. Run the runner on the host (not inside application containers), so Boto3 uses the host's configured credential chain/profile without mounting AWS credentials into containers:
 
@@ -43,7 +63,7 @@ docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --
 
 Record the two fixture resource IDs from the JSON and the `incident_id` printed by the deterministic live-demo. The incident demo uses the third resource `service-b`; it exercises real local PostgreSQL admission/outbox, Kafka, worker receipts and controller lifecycle. Run the host Python environment with repository dependencies already installed. Before any future inference approval, confirm the local API, database and Redis URLs refer only to this isolated project.
 
-For a verified host profile, set `BEDROCK_PROFILE=botkernel-dev` in the later acceptance process; Boto3 uses that profile only inside the host process. If the owner instead approves another host credential chain, leave the profile unset. The profile name and credential availability have not been inspected. This path does not copy credentials into Compose, images, environment artifacts, or output reports.
+For a verified host profile, set `BEDROCK_PROFILE=botkernel-dev` in a separately authorized acceptance process; Boto3 uses that profile inside the host process. If the owner instead approves another host credential chain, leave the profile unset. This does not configure credentials in the separate Investigator worker; see the readiness limitation above. This example does not copy credentials into Compose, images, environment artifacts, or output reports.
 
 Only after the distinct live-acceptance approval described below, set the exact reviewed gates and run once with fresh resource IDs and a fresh output filename. The two role cycles run locally in the host process; they do not start continuous agent containers. The API's cloud and AI-action gates remain mock/false. A model may correctly choose `NO_OP`; this is an accepted decision if provenance and evidence validate.
 
@@ -87,9 +107,9 @@ docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --
 
 Do not use the project name above unless it is the exact project started in the current authorized local session. Stopping is not cleanup; volumes are retained.
 
-## Bedrock/profile and spend preflight (AWS commands, not run)
+## Historical Bedrock/profile and spend preflight reference
 
-Approval requested **first** for a read-only AWS inspection session only. Stop if the profile/account differs from the owner-confirmed target, if a query is denied, or if profile/model/IAM support is ambiguous. These commands do not call `Converse` or mutate resources. The expected historical profile name is `botkernel-dev`; it has not been checked.
+Before a future authorized experiment, recheck the owner-confirmed account, profile, model, permissions and pricing. Stop if the target differs, a query is denied, or support is ambiguous. These commands do not call `Converse` or mutate resources.
 
 ```powershell
 $ProfileName = 'botkernel-dev'
@@ -116,11 +136,11 @@ aws iam simulate-principal-policy --profile $ProfileName --region $Region `
 
 For the EC2 role route, inspect the attached instance profile and role policy read-only, then simulate that exact role ARN against the same reviewed resource list. Terraform `infra/terraform/iam.tf` defaults the separate Bedrock policy off. If approved, it must be scoped to the inference profile and required destination models; do not broaden it to `Resource: "*"`. IAM simulation does not establish effective authorization through SCPs, permissions boundaries, endpoint policies or all service-specific conditions. Do not modify IAM in this phase.
 
-The model candidate is system-defined inference profile `us.amazon.nova-micro-v1:0`, source region `us-east-2`. Its active state, regional availability, routing destinations, account entitlement and effective `bedrock:InvokeModel` permission are all **unknown**. A cross-region profile may require permission to invoke both the profile ARN and destination foundation-model ARNs. Verify this against the current profile response and AWS's current regional inference documentation before approval.
+The model candidate is system-defined inference profile `us.amazon.nova-micro-v1:0`, source region `us-east-2`. The 2026-11-12 profile and model checks and operator IAM simulation are described above; effective authorization and the ambiguous Cost error remain unresolved. A cross-region profile may require permission to invoke both the profile ARN and destination foundation-model ARNs.
 
-No current pricing was checked. The earlier handoff cited an Ohio Nova Micro price example of `$0.000035/1K` input and `$0.00014/1K` output tokens, but those are historical references, not a verified current quote. At those illustrative rates, a 20,000-token all-output bound would be `$0.0028`; three 512-output-token caps leave at most 18,464 estimated input tokens, about `$0.0008613` under that token split. These estimates assume the rates remain applicable and actual tokens fit the application estimate; neither is established. The proposed `$0.01` experiment ceiling is a request only, not a verified cost nor a hard AWS limit. Obtain current official regional/profile pricing and calculate a conservative estimate before requesting paid-call approval. Do not rely on an AWS Budget alert as a billing cap.
+At the 2026-11-12 checked rates, a 20,000-token all-output bound would be `$0.0028`; three 512-output-token caps leave at most 18,464 estimated input tokens, about `$0.0008613` under that token split. These estimates assume those rates apply and actual tokens fit the application estimate. The proposed `$0.01` experiment ceiling is not a verified cost or a hard AWS limit. Recheck pricing for future approval; an AWS Budget alert is not a billing cap.
 
-## Private EC2 integration preparation (not run)
+## Historical private EC2 integration preparation
 
 Previously published deployment images may not contain current source. Any future deployment would need locally rebuilt backend and dashboard images, followed by separately approved immutable-tag publication and deployment. No cloud operation is authorized by this preparation.
 
@@ -130,12 +150,12 @@ Before inference, create a complete incident through the running local controlle
 
 Rollback preparation: before service changes, capture the current immutable image tags/digests, Compose config with secrets redacted, service health, latest PostgreSQL backup status, and checkpoint/report/artifact inventory. If any inference ambiguity or service regression occurs, set all Bedrock/spend/action gates false, restore deterministic providers, stop only the acceptance agent processes, and return to the last approved image/config. Preserve EBS, Docker volumes, PostgreSQL, Kafka, SQLite checkpoints, incidents, reports and benchmark evidence. Do not run `down -v`, delete images/data, stop/start/terminate EC2, change IAM, or perform rollback operations without their own explicit approval.
 
-## Approval checkpoint
+## Approval checkpoints for any future acceptance
 
 1. **Read-only AWS preflight approval:** identity/account, current EC2 state/instance profile, recent Cost Explorer cost, Nova inference-profile/model metadata, and exact-principal IAM simulation above. No model invocation, IAM change, image push, Terraform, EC2 change, or service operation is included.
-2. **Separate paid-inference approval:** only after the read-only results and current pricing are reviewed, approve at most three intended invocations (Cost, Performance, Investigator), each at most 512 generated tokens, total application-estimated tokens at most 20,000, proposed spend ceiling `$0.01`, action execution disabled. This limit is not a hard billing cap. The profile and account access are currently unverified, so the cost estimate is not yet ready for approval.
+2. **Separate paid-inference approval:** only after the read-only results and current pricing are reviewed, explicitly approve any future bounded experiment with action execution disabled. The earlier approval does not authorize retries or additional calls. Application limits are not a hard billing cap.
 
-Live acceptance is **not ready to begin** until a clean current-source local API/browser regression, isolated evidence fixtures, AWS identity/profile and price/permission preflight, safe credential route, and explicit paid-call approval are complete.
+Do not treat unrelated full-suite or browser resource limitations as a reason to require another full stack before a separately approved, safely isolated bounded test.
 
 ## Follow-up validation (2026-11-12)
 
@@ -145,7 +165,7 @@ The focused LangGraph module passed **44 tests**, and its checkpoint persistence
 
 The focused three-case mocked acceptance harness had previously passed **10 tests**; these prove the actual integration paths with mocked inference, not live model behavior. In the current full-suite attempts, the acceptance tests were among the passing tests.
 
-No AWS identity, EC2, billing, IAM, Bedrock, or pricing check was run. No live inference, cloud change, or persistent-data cleanup occurred. The candidate profile and proposed 3-call / 512-output-token / 20,000-estimated-token / $0.01 experiment bounds remain unverified application limits, not AWS billing caps. Current AWS state, permissions, cross-region destinations, credential route, and pricing are **UNKNOWN**. Do not execute the listed read-only preflight or any inference until the corresponding separate authorization is given. Keep all inference, cloud-deployment, and AI-action gates disabled.
+At the time of this earlier validation, no AWS or live inference checks had been run; see the 2026-11-12 bounded-attempt status above for the later results. The application limits are not AWS billing caps.
 
 ## Final bounded local validation
 
@@ -153,4 +173,4 @@ The Cost/Performance acceptance runner now restores `BOTKERNEL_AGENT_RESOURCE` a
 
 The experiment history endpoint now reads a compact `history.json` for new runs and reconstructs legacy history from `report.md` and `summary.csv`, avoiding large `raw.json` tick payloads. Its focused evaluation tests passed **12/12**. A fresh API image was ready; its 20-run history request took 4.19 seconds. The latest full dashboard suite before that correction was **18/19**, failing only the experiment visual wait. After setting that single content wait to 15 seconds, the targeted desktop/laptop/mobile Chromium visual test passed **1/1**. The full backend and browser suites were not rerun after the history change.
 
-No AWS identity, EC2, billing, IAM, Bedrock, or pricing query was made. No live inference, cloud change, or data/volume cleanup occurred. AWS state and permissions remain **UNKNOWN**. The approval checkpoints and all disabled cloud, spend and AI-action gates above remain unchanged.
+At the time of this earlier local validation, no AWS or live inference checks had been run; see the bounded-attempt status above for the later results.
