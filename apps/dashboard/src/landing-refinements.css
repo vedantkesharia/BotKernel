@@ -40,10 +40,9 @@
 
 .demo-canvas {
   position: relative;
-  height: auto;
+  height: 410px;
   min-height: 0;
-  padding: 26px 18px 18px;
-  overflow: visible;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 48%, #292a281c 0%, transparent 68%),
     linear-gradient(#ffffff05 1px, transparent 1px),
@@ -63,14 +62,16 @@
 }
 
 .demo-wires marker path {
-  fill: #89928a;
-  stroke: none;
+  fill: #c4cdc5;
+  stroke: #101210;
+  stroke-width: .8px;
+  stroke-linejoin: round;
 }
 
 .demo-wire {
   fill: none;
   stroke: #778078;
-  stroke-width: 1.25px;
+  stroke-width: 1.8px;
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: .76;
@@ -80,7 +81,7 @@
 
 .demo-wire.is-active {
   stroke: #c1cbc2;
-  stroke-width: 1.65px;
+  stroke-width: 2.4px;
   opacity: 1;
 }
 
@@ -97,27 +98,34 @@
   to { stroke-dashoffset: -22; }
 }
 
-.demo-grid {
-  position: relative;
+.demo-diagram {
+  position: absolute;
   z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(114px, 1.2fr) repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(62px, auto));
-  gap: 18px 9px;
+  inset: 0;
+}
+
+@media (min-width: 701px) {
+  .landing-hero {
+    grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr);
+    column-gap: 3%;
+  }
+
+  .demo-canvas {
+    height: clamp(390px, 32vw, 430px);
+  }
 }
 
 .demo-agent,
 .demo-node {
-  position: relative;
-  inset: auto;
+  position: absolute;
   z-index: 1;
   display: flex;
-  width: auto;
+  width: clamp(108px, 16%, 142px);
   min-width: 0;
-  min-height: 56px;
+  min-height: 58px;
   align-items: center;
-  gap: 7px;
-  padding: 8px;
+  gap: 9px;
+  padding: 10px 11px;
   border: 1px solid #393d3a;
   border-radius: 8px;
   background: #191b1a;
@@ -127,8 +135,7 @@
 }
 
 .demo-agent {
-  gap: 6px;
-  padding: 7px;
+  width: clamp(116px, 17%, 146px);
 }
 
 .demo-agent > span:first-child {
@@ -166,7 +173,8 @@
 }
 
 .demo-agent b {
-  white-space: nowrap;
+  line-height: 1.15;
+  overflow-wrap: normal;
 }
 
 .demo-agent small,
@@ -197,15 +205,39 @@
   box-shadow: 0 0 0 2px #c5d5c51a, 0 9px 22px #0006;
 }
 
-.demo-resource { grid-column: 1; grid-row: 1 / span 2; }
-.demo-cost { grid-column: 2; grid-row: 1; }
-.demo-performance { grid-column: 2; grid-row: 2; }
-.demo-gateway { grid-column: 3; grid-row: 1 / span 2; }
-.demo-outbox { grid-column: 4; grid-row: 1 / span 2; }
-.demo-worker { grid-column: 5; grid-row: 1 / span 2; }
-.demo-effect { grid-column: 6; grid-row: 1 / span 2; }
-.demo-controller { grid-column: 5; grid-row: 3; }
-.demo-investigator { grid-column: 6; grid-row: 3; }
+.demo-zone {
+  position: absolute;
+  z-index: 2;
+  color: #717873;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1.15px;
+  text-transform: uppercase;
+}
+
+.demo-zone::before {
+  content: "";
+  display: inline-block;
+  width: 15px;
+  margin-right: 7px;
+  border-top: 1px solid #59605a;
+  vertical-align: middle;
+}
+
+.demo-zone-agents { left: 21%; top: 7%; }
+.demo-zone-execution { left: 59%; top: 7%; }
+.demo-zone-reliability { left: 38%; top: 70%; }
+
+.demo-resource { left: 3%; top: 38%; width: clamp(112px, 15%, 130px); }
+.demo-cost { left: 21%; top: 19%; }
+.demo-performance { left: 21%; top: 50%; }
+.demo-gateway { left: 41%; top: 38%; }
+.demo-outbox { left: 59%; top: 19%; }
+.demo-publisher { left: 79%; top: 19%; width: clamp(124px, 18%, 150px); }
+.demo-worker { left: 79%; top: 50%; width: clamp(116px, 17%, 142px); }
+.demo-effect { left: 59%; top: 50%; width: clamp(116px, 17%, 142px); }
+.demo-controller { left: 59%; top: 78%; width: clamp(124px, 18%, 150px); }
+.demo-investigator { left: 38%; top: 78%; width: clamp(118px, 17%, 144px); }
 
 .demo-story {
   min-height: 94px;
@@ -854,25 +886,21 @@
   }
 
   .demo-canvas {
-    padding: 20px 14px 14px;
+    height: 620px;
     background-size: auto, 24px 24px, 24px 24px;
   }
 
-  .demo-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(5, minmax(58px, auto));
-    gap: 12px;
-  }
-
-  .demo-resource { grid-column: 1 / -1; grid-row: 1; }
-  .demo-cost { grid-column: 1; grid-row: 2; }
-  .demo-performance { grid-column: 2; grid-row: 2; }
-  .demo-gateway { grid-column: 1; grid-row: 3; }
-  .demo-outbox { grid-column: 2; grid-row: 3; }
-  .demo-worker { grid-column: 1; grid-row: 4; }
-  .demo-effect { grid-column: 2; grid-row: 4; }
-  .demo-controller { grid-column: 1; grid-row: 5; }
-  .demo-investigator { grid-column: 2; grid-row: 5; }
+  .demo-zone { display: none; }
+  .demo-resource { left: 4%; top: 7%; width: 92%; }
+  .demo-cost { left: 4%; top: 20%; width: 43%; }
+  .demo-performance { left: 53%; top: 20%; width: 43%; }
+  .demo-gateway { left: 4%; top: 33%; width: 43%; }
+  .demo-outbox { left: 53%; top: 33%; width: 43%; }
+  .demo-publisher { left: 4%; top: 46%; width: 43%; }
+  .demo-worker { left: 53%; top: 46%; width: 43%; }
+  .demo-controller { left: 4%; top: 59%; width: 43%; }
+  .demo-effect { left: 53%; top: 59%; width: 43%; }
+  .demo-investigator { left: 28.5%; top: 74%; width: 43%; }
 
   .demo-agent,
   .demo-node {

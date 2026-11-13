@@ -15,7 +15,7 @@ test("public product landing stays independent of the operator API at all review
     await expect(page.getByRole("group", { name: "Illustrative system stages" })).toBeVisible();
     const diagramLayout = await page.locator(".demo-canvas").evaluate(canvas => {
       const bounds = canvas.getBoundingClientRect();
-      const nodes = [...canvas.querySelectorAll<HTMLElement>(".demo-grid [data-node]")].map(node => {
+      const nodes = [...canvas.querySelectorAll<HTMLElement>(".demo-diagram [data-node]")].map(node => {
         const rect = node.getBoundingClientRect();
         return { name: node.dataset.node, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
       });
@@ -31,7 +31,8 @@ test("public product landing stays independent of the operator API at all review
         "cost-admission": ["cost", "gateway"],
         "performance-admission": ["performance", "gateway"],
         "admission-postgres": ["gateway", "outbox"],
-        "postgres-worker": ["outbox", "worker"],
+        "postgres-publisher": ["outbox", "publisher"],
+        "publisher-worker": ["publisher", "worker"],
         "worker-effect": ["worker", "effect"],
         "effect-resource": ["effect", "resource"],
         "effect-controller": ["effect", "controller"],
@@ -63,13 +64,16 @@ test("public product landing stays independent of the operator API at all review
         ? stabilityWire.getPointAtLength(stabilityWire.getTotalLength())
         : null;
       const stabilityEndpointOffset = stabilityEndpoint && stabilityController
-        ? Math.hypot(
-          stabilityEndpoint.x - (stabilityController.left + stabilityController.right) / 2 + bounds.left,
-          stabilityEndpoint.y - stabilityController.top + bounds.top,
+        ? Math.min(
+          Math.abs(stabilityEndpoint.x - (stabilityController.left - bounds.left)),
+          Math.abs(stabilityEndpoint.x - (stabilityController.right - bounds.left)),
+          Math.abs(stabilityEndpoint.y - (stabilityController.top - bounds.top)),
+          Math.abs(stabilityEndpoint.y - (stabilityController.bottom - bounds.top)),
         )
         : null;
       return {
         nodes,
+        oversizedNodes: nodes.filter(node => node.height > 84).map(node => node.name),
         overlaps,
         outside,
         wireCount: wires.length,
@@ -81,10 +85,11 @@ test("public product landing stays independent of the operator API at all review
         wiresHidden: getComputedStyle(canvas.querySelector(".demo-wires")!).display === "none",
       };
     });
-    expect(diagramLayout.nodes).toHaveLength(9);
+    expect(diagramLayout.nodes).toHaveLength(10);
+    expect(diagramLayout.oversizedNodes).toEqual([]);
     expect(diagramLayout.overlaps).toEqual([]);
     expect(diagramLayout.outside).toEqual([]);
-    expect(diagramLayout.wireCount).toBe(10);
+    expect(diagramLayout.wireCount).toBe(11);
     expect(diagramLayout.emptyWires).toEqual([]);
     expect(diagramLayout.missingAgentAdmissionEdges).toEqual([]);
     expect(diagramLayout.connectorIntersections).toEqual([]);
