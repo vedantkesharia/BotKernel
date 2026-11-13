@@ -1,0 +1,338 @@
+{{- if .Values.observability.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: botkernel-observability-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+      scrape_timeout: 4s
+    scrape_configs:
+      - job_name: gateway
+        authorization:
+          credentials_file: /etc/prometheus/secrets/metrics-token
+        static_configs:
+          - targets: ["api:8000"]
+      - job_name: background
+        static_configs:
+          - targets:
+              - botkernel-publisher-metrics:9100
+              - botkernel-worker-metrics:9100
+              - botkernel-recovery-metrics:9100
+              - botkernel-controller-metrics:9100
+  otel-collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 128
+        spike_limit_mib: 32
+      batch:
+        timeout: 1s
+        send_batch_size: 128
+        send_batch_max_size: 256
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger:4317
+        tls:
+          insecure: true
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/jaeger]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: botkernel-grafana-provisioning
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: BotKernel
+        orgId: 1
+        folder: BotKernel
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  type: ClusterIP
+  selector:
+    app: botkernel-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: botkernel-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: botkernel-prometheus
+  template:
+    metadata:
+      labels:
+        app: botkernel-prometheus
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: botkernel
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.2.1
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=7d
+          ports:
+            - name: http
+              containerPort: 9090
+          readinessProbe:
+            httpGet: {path: /-/ready, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /-/healthy, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+              readOnly: true
+            - name: metrics-token
+              mountPath: /etc/prometheus/secrets
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+      volumes:
+        - name: config
+          configMap:
+            name: botkernel-observability-config
+        - name: metrics-token
+          secret:
+            secretName: {{ .Values.metricsSecret | quote }}
+            items:
+              - key: metrics-token
+                path: metrics-token
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+spec:
+  type: ClusterIP
+  selector:
+    app: botkernel-jaeger
+  ports:
+    - {name: ui, port: 16686, targetPort: 16686}
+    - {name: otlp-grpc, port: 4317, targetPort: 4317}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: botkernel-jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: botkernel-jaeger
+  template:
+    metadata:
+      labels:
+        app: botkernel-jaeger
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: botkernel
+      containers:
+        - name: jaeger
+          image: cr.jaegertracing.io/jaegertracing/jaeger:2.23.0
+          ports:
+            - {name: ui, containerPort: 16686}
+            - {name: otlp-grpc, containerPort: 4317}
+          readinessProbe:
+            httpGet: {path: /, port: ui}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+spec:
+  type: ClusterIP
+  selector:
+    app: botkernel-otel-collector
+  ports:
+    - {name: otlp-grpc, port: 4317, targetPort: 4317}
+    - {name: otlp-http, port: 4318, targetPort: 4318}
+    - {name: health, port: 13133, targetPort: 13133}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: botkernel-otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: botkernel-otel-collector
+  template:
+    metadata:
+      labels:
+        app: botkernel-otel-collector
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: botkernel
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.123.0
+          args: ["--config=/etc/otelcol-contrib/otel-collector.yaml"]
+          ports:
+            - {name: otlp-grpc, containerPort: 4317}
+            - {name: otlp-http, containerPort: 4318}
+            - {name: health, containerPort: 13133}
+          readinessProbe:
+            httpGet: {path: /, port: health}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /, port: health}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol-contrib/otel-collector.yaml
+              subPath: otel-collector.yaml
+              readOnly: true
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {cpu: 250m, memory: 192Mi}
+      volumes:
+        - name: config
+          configMap:
+            name: botkernel-observability-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: botkernel-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: botkernel-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: botkernel-grafana
+  template:
+    metadata:
+      labels:
+        app: botkernel-grafana
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: botkernel
+      securityContext:
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.6.0
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.observability.grafanaAdminSecret | quote }}
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.observability.grafanaAdminSecret | quote }}
+                  key: admin-password
+            - {name: GF_ANALYTICS_REPORTING_ENABLED, value: "false"}
+            - {name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: "false"}
+            - {name: GF_PLUGINS_PREINSTALL_DISABLED, value: "true"}
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet: {path: /api/health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /api/health, port: http}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasource.yaml
+              readOnly: true
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+              readOnly: true
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+      volumes:
+        - name: provisioning
+          configMap:
+            name: botkernel-grafana-provisioning
+        - name: dashboards
+          configMap:
+            name: {{ .Values.observability.dashboardsConfigMap | quote }}
+{{- end }}

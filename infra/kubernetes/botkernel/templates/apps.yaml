@@ -23,7 +23,11 @@ spec:
         app: botkernel-{{ $name }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: botkernel
       terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
       {{- if and (ne $name "api") (ne $name "dashboard") }}
       initContainers:
         - name: wait-api
@@ -53,6 +57,13 @@ spec:
             requests: {cpu: 25m, memory: 32Mi}
             limits: {cpu: 250m, memory: 128Mi}
           {{- else }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           envFrom:
             - configMapRef:
                 name: botkernel-config
@@ -146,5 +157,20 @@ spec:
           persistentVolumeClaim:
             claimName: botkernel-{{ $name }}-checkpoint
       {{- end }}
+{{- if and $root.Values.observability.enabled (has $name (list "publisher" "worker" "recovery" "controller")) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: botkernel-{{ $name }}-metrics
+spec:
+  type: ClusterIP
+  selector:
+    app: botkernel-{{ $name }}
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+{{- end }}
 ---
 {{- end }}

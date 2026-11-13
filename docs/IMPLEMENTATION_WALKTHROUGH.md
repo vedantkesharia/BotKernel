@@ -55,7 +55,7 @@ The graph is derived from committed effects. `effect_relationships.py` identifie
 
 Compose is the validated local integration path. On 2026-11-12, current-source images and migration `0009` ran on the existing private EC2 host: eight deterministic actions produced eight outbox entries, receipts and committed effects; the controller transitioned `HOLD -> VERIFIED -> HOLD`, and an idempotently retrieved deterministic investigation cited all eight effects. The dashboard's host-loopback HTML and authenticated incident proxy were checked, but not a cloud browser. Services and EC2 were stopped afterward, retaining encrypted EBS. A pre-migration PostgreSQL dump was restored into a separate verification database; full disaster recovery was not tested. See [AWS notes](../infra/terraform/README.md).
 
-The [Kubernetes chart](../infra/kubernetes/README.md) is rendered and linted but **not runtime-validated**. Both deployments use a simulator, not live infrastructure remediation. Public operator access and HA are not verified.
+The [Kubernetes chart](../infra/kubernetes/README.md) is linted and statically rendered, including opt-in agents and observability, but **not runtime-validated**. Bedrock and AI action execution remain disabled by default; all data-plane services are private ClusterIP. Both deployments use a simulator, not live infrastructure remediation. Public operator access and HA are not verified.
 
 ## Five-minute design discussion
 

@@ -6,6 +6,8 @@ metadata:
   name: {{ $name }}
 spec:
   type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: botkernel-{{ $name }}
   ports:
@@ -30,11 +32,11 @@ spec:
         app: botkernel-{{ $name }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: botkernel
       terminationGracePeriodSeconds: 60
-      {{- if eq $name "kafka" }}
       securityContext:
-        fsGroup: 1000
-      {{- end }}
+        fsGroup: {{ if eq $name "kafka" }}1000{{ else }}999{{ end }}
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: {{ $name }}
           {{- if eq $name "postgres" }}
@@ -81,11 +83,15 @@ spec:
             - {name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "true"}
             - {name: KAFKA_HEAP_OPTS, value: "-Xms256m -Xmx512m"}
           readinessProbe:
-            tcpSocket: {port: 9092}
+            exec:
+              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+            timeoutSeconds: 8
             initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
-            tcpSocket: {port: 9092}
+            exec:
+              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+            timeoutSeconds: 8
             initialDelaySeconds: 90
             periodSeconds: 20
           volumeMounts:

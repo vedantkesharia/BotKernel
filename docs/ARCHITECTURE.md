@@ -22,7 +22,7 @@ Terraform and Compose describe an optional private, single-host AWS demonstratio
 
 ## Local Kubernetes templates
 
-The [local Helm chart](../infra/kubernetes/README.md) defines single-instance stateful services, a migration job, application deployments and optional agents with distinct checkpoint claims. Services are ClusterIP; database and operator/agent Secrets are supplied separately, with an optional metrics Secret. Templates have been linted and rendered, but the chart has not been installed or validated end to end; it is not an HA or production deployment.
+The [local Helm chart](../infra/kubernetes/README.md) defines single-instance stateful services, a migration job, application deployments and optional agents with distinct checkpoint claims. Services are private ClusterIP; database and operator/agent Secrets are supplied separately. Bedrock controls are exposed but default off, and an optional observability profile provisions authenticated Prometheus scraping, Grafana and the existing dashboard files, and Collector/Jaeger tracing. The chart has been linted and rendered, but it has not been installed or validated end to end; it is not an HA or production deployment.
 
 ## Runtime limitations
 

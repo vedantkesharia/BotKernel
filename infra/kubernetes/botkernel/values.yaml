@@ -14,6 +14,20 @@ investigation:
   executionTimeoutSeconds: 30
   terminationGraceSeconds: 2
 
+bedrock:
+  enabled: false
+  spendAuthorized: false
+  modelId: us.amazon.nova-micro-v1:0
+  region: us-east-2
+  profile: ""
+  maxOutputTokens: 512
+  maxCallsPerRun: 1
+  maxCallsPerDay: 3
+  maxTokensPerDay: 20000
+  requestTimeoutSeconds: 10
+  agentProvider: deterministic_mock
+  investigatorProvider: deterministic_mock
+
 storage:
   postgres: 2Gi
   kafka: 2Gi
@@ -25,4 +39,10 @@ agents:
   # Deterministic agents can submit simulator actions; opt in for a demo.
   enabled: false
   costResource: service-a
-  performanceResource: service-a
+  performanceResource: service-b
+
+observability:
+  enabled: false
+  # Create this ConfigMap from observability/dashboards before enabling this profile.
+  dashboardsConfigMap: botkernel-grafana-dashboards
+  grafanaAdminSecret: botkernel-grafana-admin

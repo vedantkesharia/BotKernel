@@ -1,0 +1,6 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.costResource .Values.agents.performanceResource) }}
+{{- fail "agents.costResource and agents.performanceResource must be distinct" }}
+{{- end }}
+{{- if and .Values.observability.enabled (not .Values.observability.dashboardsConfigMap) }}
+{{- fail "observability.dashboardsConfigMap is required when observability.enabled is true" }}
+{{- end }}

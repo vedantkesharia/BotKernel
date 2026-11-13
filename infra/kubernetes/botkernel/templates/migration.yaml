@@ -7,6 +7,7 @@ spec:
   template:
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: botkernel
       restartPolicy: OnFailure
       initContainers:
         - name: wait-postgres
@@ -19,6 +20,13 @@ spec:
         - name: migrate
           image: {{ .Values.backendImage | quote }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           command: [python, -c, "from botkernel.core import initialize; initialize()"]
           env:
             - name: DATABASE_URL

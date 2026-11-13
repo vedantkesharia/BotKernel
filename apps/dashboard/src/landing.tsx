@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArchitectureJourney, ConflictStory, ConsolePreview } from "./LandingStories";
 import { CapabilityBento, OrchestrationDemo } from "./OrchestrationDemo";
 import "./landing.css";
+import "./landing-refinements.css";
 
 function Brand() {
   return <Link className="landing-brand" to="/" aria-label="BotKernel home"><span className="landing-mark"><i/><i/><i/><i/></span><span>BotKernel</span></Link>;

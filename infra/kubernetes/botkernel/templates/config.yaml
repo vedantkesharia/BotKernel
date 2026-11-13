@@ -6,13 +6,23 @@ data:
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   REDIS_URL: "redis://redis:6379"
   BOTKERNEL_API_URL: "http://api:8000"
+  METRICS_ENABLED: {{ .Values.observability.enabled | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ if .Values.observability.enabled }}"http://otel-collector:4318"{{ else }}""{{ end }}
   CLOUD_MODE: "mock"
   AWS_DEPLOY_ALLOWED: "false"
-  BEDROCK_ENABLED: "false"
-  BEDROCK_SPEND_AUTHORIZED: "false"
+  BEDROCK_ENABLED: {{ .Values.bedrock.enabled | quote }}
+  BEDROCK_SPEND_AUTHORIZED: {{ .Values.bedrock.spendAuthorized | quote }}
+  BEDROCK_MODEL_ID: {{ .Values.bedrock.modelId | quote }}
+  BEDROCK_REGION: {{ .Values.bedrock.region | quote }}
+  BEDROCK_PROFILE: {{ .Values.bedrock.profile | quote }}
+  BEDROCK_MAX_OUTPUT_TOKENS: {{ .Values.bedrock.maxOutputTokens | quote }}
+  BEDROCK_MAX_CALLS_PER_RUN: {{ .Values.bedrock.maxCallsPerRun | quote }}
+  BEDROCK_MAX_CALLS_PER_DAY: {{ .Values.bedrock.maxCallsPerDay | quote }}
+  MAX_BEDROCK_TOKENS_PER_DAY: {{ .Values.bedrock.maxTokensPerDay | quote }}
+  BEDROCK_REQUEST_TIMEOUT_SECONDS: {{ .Values.bedrock.requestTimeoutSeconds | quote }}
   AI_ACTION_EXECUTION_ENABLED: "false"
-  AGENT_PROVIDER: "deterministic_mock"
-  INVESTIGATOR_PROVIDER: "deterministic_mock"
+  AGENT_PROVIDER: {{ .Values.bedrock.agentProvider | quote }}
+  INVESTIGATOR_PROVIDER: {{ .Values.bedrock.investigatorProvider | quote }}
 ---
 apiVersion: v1
 kind: Service

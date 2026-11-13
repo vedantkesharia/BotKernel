@@ -18,23 +18,23 @@ Legacy `/agents`, `/graph`, `/incidents` and `/experiments` URLs redirect to `/a
 Start an explicitly named local stack from the repository root in PowerShell:
 
 ```powershell
-$env:BOTKERNEL_API_PORT='18019'
-$env:BOTKERNEL_OPERATOR_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
-$env:BOTKERNEL_AGENT_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Set BOTKERNEL_OPERATOR_TOKEN and BOTKERNEL_AGENT_TOKEN in the ignored .env file.
+$OperatorToken = (Get-Content .env | Where-Object { $_ -like 'BOTKERNEL_OPERATOR_TOKEN=*' }) -replace '^BOTKERNEL_OPERATOR_TOKEN=', ''
 docker compose -p botkernel-neutral-review up --build -d postgres redis kafka init api publisher worker recovery controller
 Invoke-RestMethod http://127.0.0.1:18019/ready
-Invoke-RestMethod http://127.0.0.1:18019/experiments -Headers @{ Authorization = "Bearer $env:BOTKERNEL_OPERATOR_TOKEN" }
+Invoke-RestMethod http://127.0.0.1:18019/experiments -Headers @{ Authorization = "Bearer $OperatorToken" }
+Remove-Variable OperatorToken
 ```
 
 Then, from `apps/dashboard` in another terminal:
 
 ```powershell
 npm ci
-$env:BOTKERNEL_API_TARGET='http://127.0.0.1:18019'
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173` after Vite starts; if that port is in use, use the URL Vite prints. Vite requires an explicit `BOTKERNEL_API_TARGET` during development. This prevents a stale API container on port 8000 from silently serving `/ready` while returning 404 for `/experiments`. Both API checks above must return successfully. To create real graph and incident data, run `docker compose -p botkernel-neutral-review exec -T api python -m botkernel.live_demo` from the root. The bounded driver uses two registered identities but is one process and modifies this project's local demo data. Stop with `docker compose -p botkernel-neutral-review down`; do not add `-v` because that deletes its named volumes. The review stack is currently stopped, with its volumes retained.
+Open `http://127.0.0.1:5173` after Vite starts; if that port is in use, use the URL Vite prints. Vite reads the server-only `BOTKERNEL_API_TARGET` from the repository's ignored `.env`; it does not expose the operator or agent tokens to browser code. This prevents a stale API container on port 8000 from silently serving `/ready` while returning 404 for `/experiments`. Both API checks above must return successfully. To create real graph and incident data, run `docker compose -p botkernel-neutral-review exec -T api python -m botkernel.live_demo` from the root. The bounded driver uses two registered identities but is one process and modifies this project's local demo data. Stop with `docker compose -p botkernel-neutral-review down`; do not add `-v` because that deletes its named volumes. The review stack is currently stopped, with its volumes retained.
 
 `npm test` runs Vitest unit tests, `npm run build` runs TypeScript and Vite, and `npm run test:e2e` runs Chromium tests against the selected backend. Browser tests require Chromium (`npx playwright install chromium`) and a populated local API. Screenshots of all five routes at 1440x900, 1280x800 and 390x844 are saved under Git-ignored `visual-review/`.
 

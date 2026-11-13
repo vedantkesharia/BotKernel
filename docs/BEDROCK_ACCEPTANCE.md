@@ -36,40 +36,65 @@ The current offline tests prove those paths with mocked provider responses. They
 
 The `--execute-live` switch and `BOTKERNEL_BEDROCK_ACCEPTANCE_APPROVED=true` are additional software guardrails, **not user authorization**. Do not set `BEDROCK_ENABLED` or `BEDROCK_SPEND_AUTHORIZED` based only on repository instructions.
 
-## Historical prepared local profile route
+## Local host and Kafka route
 
-The following Compose examples describe earlier fixture preparation only. Do **not** use their newly created Redis store for live inference or assume the containerized API has the workstation's login credentials. Use the existing budget store and the host API route described below instead.
+The `compose.bedrock-acceptance.yaml` override adds a second Kafka listener advertised as `127.0.0.1:<host-port>` while preserving the `kafka:9092` listener for Compose publishers and workers. It binds that host listener, PostgreSQL and Redis only to loopback; the health check uses Kafka's broker API, and migration waits for both PostgreSQL and Kafka health. `docker compose config` can validate the merged configuration without starting services.
 
-The local overlay `compose.bedrock-acceptance.yaml` binds only PostgreSQL and Redis to loopback. The normal Compose API port is also loopback-bound. Run the runner on the host (not inside application containers), so Boto3 uses the host's configured credential chain/profile without mounting AWS credentials into containers:
+Run the API and Cost/Performance acceptance runner on the trusted Windows host, not in an application container. This lets Boto3 use the host's login profile and lets the separately supervised Investigator inherit the same profile without mounting AWS credentials in Docker. The API service itself is intentionally not started as a Compose container:
 
 ```powershell
 $Project = 'botkernel-bedrock-acceptance-<unique-suffix>'
 $env:BOTKERNEL_API_PORT = '18080'
 $env:BEDROCK_ACCEPTANCE_PG_PORT = '15432'
 $env:BEDROCK_ACCEPTANCE_REDIS_PORT = '16379'
-docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --profile stability up --build -d postgres redis kafka init api publisher worker recovery controller
-Invoke-RestMethod http://127.0.0.1:18080/ready
+$env:BEDROCK_ACCEPTANCE_KAFKA_PORT = '19092'
+docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --profile stability config
+docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --profile stability up --build -d postgres kafka init publisher worker recovery controller
 ```
 
-Use an isolated, fresh Compose project and unique local resource names. First create the Cost/Performance acceptance resources and commit at least one simulator effect per resource through the regular gateway/outbox/Kafka/worker path. The Cost resource must have capacity above 3. The Performance resource must have simulated p95 latency above 80 ms and capacity at most 17. Neither may have pending actions or a controller hold. Produce the incident on a third resource through the existing bounded local controller demo, then verify its committed effect links remain in the one-hour graph window. Do not reuse a shared development database or alter an existing cloud incident. Resource IDs and the incident ID are explicit runner inputs; the runner never fabricates model decisions or prepares fixture effects.
+Use a unique Compose project and fresh PostgreSQL data only for local simulation. Do not use the Compose Redis instance for a live inference budget: it has no historical reservation. For a live experiment, set the host API and runner's `REDIS_URL` to the same already-designated Redis server and DB containing the historical budget, re-read the current UTC-day counter, and fail closed if all three call slots are not available. Never clear a counter or substitute a new store. Compose worker Redis is advisory only and is not the model budget store. Start the host API with the actual base Python executable (not the Windows virtualenv launcher), the trusted virtualenv site-packages on `PYTHONPATH`, `DATABASE_URL=postgresql+psycopg://botkernel:local@127.0.0.1:15432/botkernel`, `REDIS_URL` set to the specifically authorized store, and `KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:19092`. Confirm `/ready` returns 200 before acceptance. The API and its supervised child inherit the same host AWS profile; do not copy credentials into any container.
 
-Once the isolated stack is ready, use the local-only fixture mode. It refuses non-loopback API/database/Redis endpoints, verifies the API still reports mock cloud/no infrastructure remediation, creates two fresh resources, then submits one low-risk seed action per resource through the real API and waits for one outbox, receipt and committed effect each. It does not invoke a model.
+The live runner requires the Cost and Performance resources to have real simulated telemetry and committed-effect evidence. Cost capacity must be above 3; Performance p95 latency must be above 80 ms and capacity at most 17. Neither can have pending actions or a controller hold. It also requires a distinct incident with committed controller-effect evidence in the one-hour graph window. Prepare these through the regular gateway/outbox/Kafka/worker/controller path with all AI gates disabled. Never alter an existing cloud incident. Resource and incident IDs must be explicit inputs; the acceptance runner does not fabricate model decisions or fixtures.
+
+For offline deterministic setup only, start the host API with every AI gate off. Use the actual base Python executable (not the Windows virtualenv launcher), and expose the trusted virtualenv packages without copying credentials into containers:
+
+```powershell
+$VenvPython = Join-Path $PWD '.venv-bedrock\Scripts\python.exe'
+$BasePython = & $VenvPython -c "import sys; from pathlib import Path; print(Path(sys.base_prefix) / 'python3.12.exe')"
+$env:PYTHONPATH = "$PWD;$PWD\.venv-bedrock\Lib\site-packages"
+$env:PYTHONNOUSERSITE = '1'
+$env:DATABASE_URL = 'postgresql+psycopg://botkernel:local@127.0.0.1:15432/botkernel'
+$env:REDIS_URL = 'redis://127.0.0.1:16379'
+$env:KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:19092'
+$env:BOTKERNEL_API_URL = 'http://127.0.0.1:18080'
+$env:CLOUD_MODE = 'mock'
+$env:AWS_DEPLOY_ALLOWED = 'false'
+$env:AI_ACTION_EXECUTION_ENABLED = 'false'
+$env:BEDROCK_ENABLED = 'false'
+$env:BEDROCK_SPEND_AUTHORIZED = 'false'
+$env:AGENT_PROVIDER = 'deterministic_mock'
+$env:INVESTIGATOR_PROVIDER = 'deterministic_mock'
+$env:BOTKERNEL_OPERATOR_TOKEN = (Get-Content '<private-operator-token-file>' -Raw).Trim()
+$env:BOTKERNEL_AGENT_TOKEN = (Get-Content '<private-agent-token-file>' -Raw).Trim()
+$ApiProc = Start-Process -FilePath $BasePython -ArgumentList @('-m','uvicorn','botkernel.api:app','--host','127.0.0.1','--port','18080') -PassThru -NoNewWindow
+```
+
+Wait for `http://127.0.0.1:18080/ready` to return 200. The fixture mode refuses non-loopback API/database/Redis endpoints, verifies the API reports mock cloud/no infrastructure remediation, creates two fresh resources, then submits one low-risk seed action per resource through the real API and waits for one outbox, receipt and committed effect each. It never invokes a model. The isolated Compose Redis in this example is for offline setup only:
 
 ```powershell
 $env:BOTKERNEL_API_URL = 'http://127.0.0.1:18080'
-$env:DATABASE_URL = 'postgresql+psycopg://botkernel:local@127.0.0.1:15432/botkernel'
-$env:REDIS_URL = 'redis://127.0.0.1:16379'
+$env:KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:19092'
 $FixtureRun = [guid]::NewGuid().ToString()
 python -m botkernel.bedrock_acceptance --prepare-local-fixtures `
   --api-url $env:BOTKERNEL_API_URL `
   --output "benchmarks\results\bedrock-acceptance\fixtures-$FixtureRun.json"
 $env:DEMO_RESOURCE = 'service-b'
-docker compose -p $Project -f compose.yaml -f compose.bedrock-acceptance.yaml --profile stability --profile demo run --rm -e DEMO_RESOURCE=service-b live-demo
+python -m botkernel.live_demo
 ```
 
-Record the two fixture resource IDs from the JSON and the `incident_id` printed by the deterministic live-demo. The incident demo uses the third resource `service-b`; it exercises real local PostgreSQL admission/outbox, Kafka, worker receipts and controller lifecycle. Run the host Python environment with repository dependencies already installed. Before any future inference approval, confirm the local API, database and Redis URLs refer only to this isolated project.
+Set the operator/agent variables from private files only within the trusted local shell. The host-run demo exercises local PostgreSQL admission/outbox, Kafka, worker receipts and controller lifecycle without inference. Record the fixture and incident IDs, then stop only the API process started above and the isolated Compose project without `-v`. Before any separately approved inference, configure the host API and runner to use the exact pre-existing model-budget store; the fresh offline Redis is never eligible for live inference.
 
-For a verified host profile, set `BEDROCK_PROFILE=botkernel-dev` in a separately authorized acceptance process; Boto3 uses that profile inside the host process. If the owner instead approves another host credential chain, leave the profile unset. This does not configure credentials in the separate Investigator worker; see the readiness limitation above. This example does not copy credentials into Compose, images, environment artifacts, or output reports.
+For a verified host profile, set `BEDROCK_PROFILE=botkernel-dev` only in the separately authorized host acceptance process; Boto3 uses that profile independently in both the host process and supervised child. If an owner-approved credential chain is used instead, leave the profile unset. This procedure does not mount credentials in Compose or persist them in images, environment files, logs or acceptance output.
 
 ## Proposed host command, not authorized
 

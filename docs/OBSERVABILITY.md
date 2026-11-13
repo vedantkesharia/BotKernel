@@ -87,3 +87,7 @@ No measured PostgreSQL/Kafka latency, throughput, CPU or memory benchmark was ru
 The `botkernel-observe` development database retains the task's demo data. Its total resource capacity was restored to 18 against a quota of 20 using a gateway-ledger scale-down; no existing rows or volumes were deleted. The isolated trace-verification stack and its newly created volumes remain running for inspection. Stop either project with `docker compose -p <project> down` and do not add `-v`.
 
 No AWS APIs, credentials, paid inference, Terraform operations or cloud resources were used. No AWS spend occurred.
+
+## Optional local Kubernetes profile
+
+The existing local Helm chart can optionally deploy authenticated Prometheus scraping, Grafana with the same three dashboard JSON files, and the OpenTelemetry Collector/Jaeger pair. Services remain ClusterIP and the profile is off by default; the metrics token and Grafana administrator credentials are referenced from separately created Secrets. See [the Kubernetes runbook](../infra/kubernetes/README.md). These manifests are linted and statically rendered, but no Kubernetes runtime, scrape target, dashboard or trace has been verified. This does not change or replace the Compose observability evidence above.
