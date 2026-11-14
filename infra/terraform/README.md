@@ -1,5 +1,7 @@
 # AWS single-host demo foundation
 
+Latest readiness: [AWS_DEMO_READY.md](../../docs/AWS_DEMO_READY.md). The 2026-11-13 read-only STS check failed with expired `botkernel-dev` login; current EC2, ECR, SSM and IAM state is UNKNOWN. No plan/apply or infrastructure change was executed. AWS runtime agent defaults now run once with no automatic container restart; the startup helper requires `AGENT_MAX_RUNS=1`. Redeploying these local changes, rotating credentials or adding model permissions requires explicit approval. Current-source SDK dependencies include python-dateutil; deployed image contents must be independently verified by digest/revision.
+
 This Terraform configuration describes an isolated, nonproduction portfolio demo using one Amazon Linux 2023 EC2 host running Docker Compose; PostgreSQL, single-node Kafka, Redis, workers, agents and the dashboard run as containers on persistent encrypted EBS. Current-source images were deployed and a deterministic incident/investigation was verified on 2026-11-12; the instance was then stopped with its encrypted volume retained. This is not an HA or production database/broker design.
 
 ## Resources and defaults

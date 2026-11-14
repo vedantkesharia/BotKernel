@@ -1,5 +1,7 @@
 # Implementation walkthrough
 
+Current deployment/readiness continuation: [AWS_DEMO_READY.md](AWS_DEMO_READY.md). AWS identity discovery on 2026-11-13 failed because the CLI login expired; no current cloud/browser/model success is asserted. Local fixes add explicit private-Compose Bedrock acceptance, shared metrics-file authentication, bounded one-cycle AWS agents and a proxy timeout compatible with supervised investigation. None of these changes has been deployed to ECR/EC2. Historical runtime results below remain historical.
+
 ## Two-minute pitch
 
 BotKernel coordinates agents that can individually make sensible decisions but jointly destabilize a shared resource. The gateway atomically reserves capacity and writes an action and transactional outbox to PostgreSQL. Kafka distributes execution, workers apply idempotent **simulated** effects, and the controller examines committed evidence for cross-agent reversals. It can contain a resource, observe sustained recovery and record an incident. An investigator builds an evidence-backed report, and the dashboard exposes the operational state. This is a local-first engineering demonstration, not a claim of production-grade exactly-once execution.

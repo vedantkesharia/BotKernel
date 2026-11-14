@@ -58,10 +58,24 @@ def validate_live_configuration(api_url: str | None = None) -> None:
     if any(os.getenv(name, "").strip() != value for name, value in required.items()):
         raise AcceptanceError("acceptance_configuration_mismatch")
     database_url = os.getenv("DATABASE_URL")
+    if os.getenv("DATABASE_URL_FILE"):
+        database_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
     redis_url = os.getenv("REDIS_URL")
     if not database_url or not redis_url:
         raise AcceptanceError("local_database_or_redis_not_configured")
-    if (
+    runtime = os.getenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "local")
+    if runtime not in {"local", "aws-demo"}:
+        raise AcceptanceError("unsupported_acceptance_runtime")
+    if runtime == "aws-demo":
+        api = urlsplit(api_url or os.getenv("BOTKERNEL_API_URL", ""))
+        if (os.getenv("BOTKERNEL_RUNTIME_ENV") != "aws-demo"
+            or api.scheme != "http" or api.hostname != "api" or api.port != 8000
+            or api.username or api.password or api.path not in {"", "/"} or api.query or api.fragment
+            or urlsplit(database_url).hostname != "postgres"
+            or urlsplit(redis_url).hostname != "redis"
+            or os.getenv("BEDROCK_PROFILE") or os.getenv("AWS_PROFILE")):
+            raise AcceptanceError("aws_acceptance_runtime_mismatch")
+    elif (
         not _is_loopback_host(urlsplit(api_url or os.getenv(
             "BOTKERNEL_API_URL", "http://127.0.0.1:8000"
         )).hostname)
@@ -372,6 +386,7 @@ def run_acceptance(
         "status": "RUNNING",
         "model_id": MODEL_ID,
         "region": REGION,
+        "runtime": os.getenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "local"),
         "action_execution_enabled": False,
         "cases": {},
     }
@@ -380,7 +395,7 @@ def run_acceptance(
             health = _read_json(client, "/health")
             if (
                 health.get("cloud_mode") != "mock"
-                or health.get("deployment_target") != "local"
+                or health.get("deployment_target") != os.getenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "local")
                 or health.get("mode") != "local simulation"
                 or health.get("real_infrastructure_remediation") is not False
             ):
@@ -405,14 +420,16 @@ def run_acceptance(
             }
             if not incident_actions:
                 raise AcceptanceError("incident_lacks_controller_effect_evidence")
-            graph = _read_json(
-                client,
-                f"/graph?window=3600&resource={incident_resource}",
-            )
-            graph_actions = {
-                effect.get("action_id") for effect in graph.get("evidence", [])
-                if isinstance(effect, dict) and isinstance(effect.get("action_id"), str)
-            }
+            if len(incident_actions) > 100:
+                raise AcceptanceError("incident_evidence_too_large")
+            # Historical committed evidence remains valid for read-only analysis;
+            # the dashboard graph's one-hour display limit is not a ledger limit.
+            with engine.begin() as connection:
+                connection.execute(text("SET LOCAL transaction_read_only = on"))
+                connection.execute(text("SET LOCAL statement_timeout = '5s'"))
+                graph_actions = {str(value) for value in connection.execute(text(
+                    "SELECT action_id FROM effects WHERE resource=:resource AND action_id=ANY(:ids)"
+                ), {"resource": incident_resource, "ids": sorted(incident_actions)}).scalars()}
             if not incident_actions.issubset(graph_actions):
                 raise AcceptanceError("incident_effects_not_in_committed_graph")
 

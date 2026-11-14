@@ -156,11 +156,11 @@ services:
       OTEL_SERVICE_NAME: botkernel-api
       BOTKERNEL_OPERATOR_TOKEN_FILE: /run/secrets/operator_token
       BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
-      BOTKERNEL_METRICS_TOKEN: ${BOTKERNEL_METRICS_TOKEN:-}
+      BOTKERNEL_METRICS_TOKEN_FILE: /run/secrets/metrics_token
       INVESTIGATION_MAX_CONCURRENT: ${INVESTIGATION_MAX_CONCURRENT:-2}
       INVESTIGATION_EXECUTION_TIMEOUT_SECONDS: ${INVESTIGATION_EXECUTION_TIMEOUT_SECONDS:-30}
       INVESTIGATION_TERMINATION_GRACE_SECONDS: ${INVESTIGATION_TERMINATION_GRACE_SECONDS:-2}
-    secrets: [database_url, operator_token, agent_token]
+    secrets: [database_url, operator_token, agent_token, metrics_token]
     networks: [backend, egress]
     depends_on:
       init:
@@ -263,7 +263,7 @@ services:
       BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
       AGENT_ROLE: cost
       AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
-      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-1}
       BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/cost.sqlite
       OTEL_SERVICE_NAME: botkernel-cost-agent
     secrets: [database_url, agent_token]
@@ -273,7 +273,7 @@ services:
       api:
         condition: service_healthy
     command: ["python", "-m", "botkernel.lang_agents"]
-    restart: on-failure:5
+    restart: "no"
     stop_grace_period: 30s
     deploy:
       resources:
@@ -288,7 +288,7 @@ services:
       BOTKERNEL_AGENT_TOKEN_FILE: /run/secrets/agent_token
       AGENT_ROLE: performance
       AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-8}
-      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-0}
+      AGENT_MAX_RUNS: ${AGENT_MAX_RUNS:-1}
       BOTKERNEL_AGENT_CHECKPOINTS: /var/lib/botkernel/checkpoints/performance.sqlite
       OTEL_SERVICE_NAME: botkernel-performance-agent
     secrets: [database_url, agent_token]
@@ -298,7 +298,7 @@ services:
       api:
         condition: service_healthy
     command: ["python", "-m", "botkernel.lang_agents"]
-    restart: on-failure:5
+    restart: "no"
     stop_grace_period: 30s
     deploy:
       resources:
@@ -341,7 +341,7 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports: ["127.0.0.1:${BOTKERNEL_PROMETHEUS_PORT:-19090}:9090"]
-    networks: [backend]
+    networks: [backend, egress]
     restart: on-failure:5
     logging: *aws-log-options
     deploy:
@@ -364,7 +364,7 @@ services:
       - ./observability/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports: ["127.0.0.1:${BOTKERNEL_GRAFANA_PORT:-13000}:3000"]
-    networks: [backend]
+    networks: [backend, egress]
     restart: on-failure:5
     logging: *aws-log-options
     deploy:
@@ -377,7 +377,7 @@ services:
     image: cr.jaegertracing.io/jaegertracing/jaeger:2.23.0
     profiles: [observability]
     ports: ["127.0.0.1:${BOTKERNEL_JAEGER_PORT:-16686}:16686"]
-    networks: [backend]
+    networks: [backend, egress]
     restart: on-failure:5
     logging: *aws-log-options
     deploy:

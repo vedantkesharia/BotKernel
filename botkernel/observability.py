@@ -254,6 +254,18 @@ class JsonLogFormatter(logging.Formatter):
                 for key in ("response_received", "remote_outcome_unknown"):
                     if type(diagnostics.get(key)) is bool:
                         safe[key] = diagnostics[key]
+                from botkernel.bedrock import AgentDecision, InvestigationAnalysis
+                fields = set(AgentDecision.model_fields) | set(InvestigationAnalysis.model_fields)
+                errors = diagnostics.get('validation_errors')
+                if isinstance(errors, list):
+                    safe['validation_errors'] = [
+                        {'category': e['category'], 'path': [p if type(p) is int and 0 <= p <= 10000 else p if isinstance(p, str) and p in fields else '<unknown-field>' for p in e['path'][:8]]}
+                        for e in errors[:20] if isinstance(e, dict) and isinstance(e.get('category'), str)
+                        and re.fullmatch(r'[a-z_]{1,80}', e['category']) and isinstance(e.get('path'), list)
+                    ]
+                usage = diagnostics.get('usage')
+                if isinstance(usage, dict):
+                    safe['usage'] = {k: v for k, v in usage.items() if k in {'inputTokens','outputTokens','totalTokens'} and type(v) is int and 0 <= v <= 10000000}
                 result["bedrock"] = safe
         if event == "http_access":
             method = record.args[1]

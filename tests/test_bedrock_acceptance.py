@@ -67,6 +67,47 @@ def test_local_fixture_preparation_refuses_non_loopback_endpoint(tmp_path, monke
         prepare_local_fixtures(api_url="https://example.invalid", output=tmp_path/"fixture.json")
 
 
+def test_aws_acceptance_requires_explicit_private_runtime(tmp_path, monkeypatch):
+    _approved_environment(monkeypatch, tmp_path / "aws.sqlite")
+    monkeypatch.setenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "aws-demo")
+    monkeypatch.setenv("BOTKERNEL_RUNTIME_ENV", "aws-demo")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.delenv("BEDROCK_PROFILE", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@postgres:5432/test")
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/15")
+    validate_live_configuration("http://api:8000")
+    monkeypatch.setenv("AWS_PROFILE", "botkernel-dev")
+    with pytest.raises(AcceptanceError, match="aws_acceptance_runtime_mismatch"):
+        validate_live_configuration("http://api:8000")
+
+
+def test_aws_acceptance_matches_database_secret_precedence(tmp_path, monkeypatch):
+    _approved_environment(monkeypatch, tmp_path / "aws.sqlite")
+    monkeypatch.setenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "aws-demo")
+    monkeypatch.setenv("BOTKERNEL_RUNTIME_ENV", "aws-demo")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.delenv("BEDROCK_PROFILE", raising=False)
+    secret = tmp_path / "database_url"
+    secret.write_text("postgresql+psycopg://user:pass@postgres:5432/test", encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL_FILE", str(secret))
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/15")
+    validate_live_configuration("http://api:8000")
+    secret.write_text("postgresql+psycopg://user:pass@unexpected:5432/test", encoding="utf-8")
+    with pytest.raises(AcceptanceError, match="aws_acceptance_runtime_mismatch"):
+        validate_live_configuration("http://api:8000")
+
+
+@pytest.mark.parametrize("endpoint", ["http://example.com:8000", "http://api:8080", "http://api:8000/other"])
+def test_aws_acceptance_rejects_unexpected_api(tmp_path, monkeypatch, endpoint):
+    _approved_environment(monkeypatch, tmp_path / "aws.sqlite")
+    monkeypatch.setenv("BOTKERNEL_BEDROCK_ACCEPTANCE_RUNTIME", "aws-demo")
+    monkeypatch.setenv("BOTKERNEL_RUNTIME_ENV", "aws-demo")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@postgres:5432/test")
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/15")
+    with pytest.raises(AcceptanceError, match="aws_acceptance_runtime_mismatch"):
+        validate_live_configuration(endpoint)
+
+
 @pytest.mark.parametrize(
     ("values", "error"),
     [
@@ -400,6 +441,8 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
             return False
 
         def get(self, path):
+            if path.startswith('/graph'):
+                pytest.fail('Acceptance must verify durable evidence, not a rolling UI graph')
             return client.get(path)
 
         def post(self, path, **kwargs):

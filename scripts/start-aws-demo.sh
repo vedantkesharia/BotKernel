@@ -41,6 +41,7 @@ require_setting AWS_DEPLOY_ALLOWED false
 require_setting BEDROCK_ENABLED false
 require_setting BEDROCK_SPEND_AUTHORIZED false
 require_setting AI_ACTION_EXECUTION_ENABLED false
+require_setting AGENT_MAX_RUNS 1
 
 aws_region="$(read_setting AWS_REGION)"
 registry="$(read_setting BOTKERNEL_ECR_REGISTRY)"

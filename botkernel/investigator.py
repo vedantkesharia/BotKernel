@@ -138,6 +138,7 @@ def ai_assist(state):
         'All hypotheses remain hypotheses; causal direction reversals are not proof.'
     )
     try:
+        payload['response_schema'] = InvestigationAnalysis.model_json_schema()
         analysis,usage=BedrockConverse().invoke_json(
             run_id=state.get('run_id',report['investigation_id']),system=system,payload=payload,
             response_type=InvestigationAnalysis,
@@ -154,6 +155,8 @@ def ai_assist(state):
         raise BedrockProviderError('invalid_evidence_reference')
     report['model_id']=usage['model_id']
     report['usage']={key:usage.get(key) for key in ('provider','model_id','input_tokens','output_tokens','invocations')}
+    if usage.get('request_id'):
+        report['usage']['request_id'] = usage['request_id']
     report['ai_analysis']={'status':'COMPLETE',**analysis.model_dump()}
     for hypothesis in analysis.hypotheses:
         report['findings'].append({

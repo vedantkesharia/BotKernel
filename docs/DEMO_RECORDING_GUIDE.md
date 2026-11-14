@@ -1,5 +1,7 @@
 # BotKernel Demo Environment Readiness and Recording Guide
 
+Latest continuation: [AWS_DEMO_READY.md](AWS_DEMO_READY.md) is the current startup, approval, private-tunnel and rehearsal checklist. AWS identity lookup now fails with expired login, so all current cloud state and browser access are UNKNOWN, regardless of historical observations below. No fresh oscillation run or final dataset was created. Do not invoke `botkernel.live_demo --help`: it has no CLI parser and would execute the demo.
+
 **Checked:** 2026-11-13
 **Scope:** Read-only runtime discovery, UI/data audit, and recording preparation.
 **Result:** The existing local console is usable, but a fresh end-to-end recording is **not ready**. No containers, services, AWS resources, Kubernetes resources, or application data were changed in this audit.
@@ -242,3 +244,7 @@ Do not stop or remove the existing historical test projects to make room without
 - **RED / BLOCKED:** Do not start a new local stack under the current Docker memory limit; no local Prometheus/Grafana/Jaeger/collector is running; EC2 is stopped and SSM plugin/managed-node access are unavailable; Kubernetes is unreachable and Helm is absent; genuine Bedrock inference is unverified and gated off; rotate the exposed operator credential before recording.
 
 **Bottom line:** A truthful recording can show the existing local console and historical simulator artifacts now, but it cannot yet demonstrate one fresh, consistent live pipeline plus observability. Resolve the Docker capacity/stack ownership decision and the private metrics/credential prerequisites first; AWS, Kubernetes, and paid Bedrock remain separately gated.
+
+## Verified continuation — 2026-11-14
+
+AWS browser smoke passed landing plus /app, /app/agents, /app/graph, /app/incidents, /app/experiments via actual SSM18090->8080; all API checks200, zero pageerrors. Grafana13000 three dashboards, Prometheus19090/targets and Jaeger16686/trace/8bafab00abf74a0da4a6273c72653d3f rendered. These are verified historical URLs, now unavailable: all task-owned tunnels closed and EC2 stopped05:33:39UTC. Operator token is protected in ignored .secrets/aws-console-access/operator.token; never show it. No final eight-action scenario was run. Incident2 is ESCALATED and has no report because Bedrock stopped at failed Cost validation; do not imply live AI completion. Existing effects now exceed1h graph window, so recording needs a separately approved fresh scenario and reviewed quota/holds (fixture allocation19/20). Begin with aws ec2 describe-instances --profile botkernel-dev --region us-east-2 --instance-ids i-0b30b3106988f698e; obtain runtime authorization before start. Use latest AWS_DEMO_READY.md plus PROJECT_HANDOFF.md exact image IDs and commands. Kubernetes remains unavailable; never show chart renders as runtime.

@@ -1,5 +1,9 @@
 # Local observability
 
+## AWS readiness continuation (2026-11-13)
+
+Current AWS monitoring is unverified because account discovery is blocked by expired login. See [AWS_DEMO_READY.md](AWS_DEMO_READY.md) for capacity-gated startup and private ports. AWS Compose now mounts the metrics secret into API as `BOTKERNEL_METRICS_TOKEN_FILE`, matching Prometheus instead of requiring a duplicate plaintext environment token. Local Compose instructions below retain their existing environment-token contract. AWS Prometheus/Grafana/Jaeger join the egress bridge as well as the internal backend, following the established dashboard host-port publication fix; UI bindings remain loopback-only and no ingress rule is added. Actual publication/scrapes/traces still require EC2 verification. Do not enable the full optional 1,600-MiB profile until measured OS/container headroom supports it.
+
 ## Local stack
 
 Prometheus, Grafana, the OpenTelemetry Collector and Jaeger are optional Compose-profile services. HTTP host ports bind to loopback; the Collector accepts OTLP only on the private Compose network. The application does not depend on monitoring services for admission or execution. To enable span export, set the OTLP endpoint explicitly; the default is blank and tracing export is disabled.
@@ -91,3 +95,7 @@ No AWS APIs, credentials, paid inference, Terraform operations or cloud resource
 ## Optional local Kubernetes profile
 
 The existing local Helm chart can optionally deploy authenticated Prometheus scraping, Grafana with the same three dashboard JSON files, and the OpenTelemetry Collector/Jaeger pair. Services remain ClusterIP and the profile is off by default; the metrics token and Grafana administrator credentials are referenced from separately created Secrets. See [the Kubernetes runbook](../infra/kubernetes/README.md). These manifests are linted and statically rendered, but no Kubernetes runtime, scrape target, dashboard or trace has been verified. This does not change or replace the Compose observability evidence above.
+
+## Verified continuation — 2026-11-14
+
+Actual AWS verification completed before safe shutdown05:33:39UTC: five Prometheus targets UP, committed-effects gauge15; all three Grafana dashboards rendered real data over SSM; Jaeger trace8bafab00abf74a0da4a6273c72653d3f has15spans across API/publisher/worker for action56d880cb-4954-41ac-b350-6b7a26481135. Fresh CloudWatch events05:29:46UTC. Available memory5777MiB, no OOM/restarts. Owner approved restricted Prometheus container UID0 with cap_drop ALL/no-new-privileges, 128MiB temporary TSDB, unchanged host secret0600/directory0700. Include compose.metrics-access.yaml on restart; never chmod secret world-readable. Prometheus/Jaeger ephemeral evidence exported before stop into persistent aws-runtime-forensic.json and local infra/deploy/aws-final-runtime-proof.json. Browser evidence in aws-browser-proof.json and protected ignored screenshots. Current services/tunnels are stopped; local13000/19090/16686 were genuinely verified, now unavailable until approved restart.

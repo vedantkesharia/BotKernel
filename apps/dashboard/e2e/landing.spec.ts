@@ -101,6 +101,18 @@ test("public product landing stays independent of the operator API at all review
       const arrowDirectionErrors = anchorMeasurements.filter(measurement =>
         measurement.edge !== "resource-branch-trunk" && measurement.direction <= 0.1,
       ).map(measurement => measurement.edge);
+      const agentAdmissionCurveErrors = compact ? [] : ["cost-admission", "performance-admission"].flatMap(id => {
+        const wire = wires.find(item => item.dataset.edge === id);
+        if (!wire) return [id];
+        const length = wire.getTotalLength();
+        const points = Array.from({ length: 81 }, (_, index) => wire.getPointAtLength(length * index / 80));
+        const doublesBack = points.some((point, index) => index > 0 && point.x < points[index - 1].x - 0.2);
+        const sourceApproach = wire.getPointAtLength(Math.min(2, length));
+        const targetApproach = wire.getPointAtLength(Math.max(0, length - 2));
+        const horizontalEntry = Math.abs(sourceApproach.y - points[0].y) < 0.75 &&
+          Math.abs(targetApproach.y - points[80].y) < 0.75;
+        return doublesBack || !horizontalEntry ? [id] : [];
+      });
       const arrowheads = [...canvas.querySelectorAll<SVGPolygonElement>(".demo-arrowhead")];
       const missingArrows = wires.filter(wire =>
         wire.dataset.edge !== "resource-branch-trunk" && !arrowheads.some(head => head.dataset.arrowFor === wire.dataset.edge),
@@ -230,6 +242,7 @@ test("public product landing stays independent of the operator API at all review
         anchorErrors,
         branchConnectionErrors,
         arrowDirectionErrors,
+        agentAdmissionCurveErrors,
         arrowheadErrors,
         arrowheadIntersections,
         missingArrows,
@@ -259,6 +272,7 @@ test("public product landing stays independent of the operator API at all review
     expect(diagramLayout.anchorErrors).toEqual([]);
     expect(diagramLayout.branchConnectionErrors).toEqual([]);
     expect(diagramLayout.arrowDirectionErrors).toEqual([]);
+    expect(diagramLayout.agentAdmissionCurveErrors).toEqual([]);
     expect(diagramLayout.arrowheadErrors).toEqual([]);
     expect(diagramLayout.arrowheadIntersections).toEqual([]);
     expect(diagramLayout.missingArrows).toEqual([]);
@@ -307,12 +321,42 @@ test("public product landing stays independent of the operator API at all review
     await page.screenshot({ path: `visual-review/landing-${name}.png`, fullPage: true });
     await page.locator(".orchestration-demo").scrollIntoViewIfNeeded();
     await page.screenshot({ path: `visual-review/system-model-${name}.png` });
+    await page.locator(".demo-canvas").evaluate(canvas => {
+      const bounds = canvas.getBoundingClientRect();
+      const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      overlay.setAttribute("data-geometry-overlay", "");
+      overlay.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
+      overlay.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none";
+      const add = (tag: string, attributes: Record<string, string>) => {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+        overlay.append(element);
+      };
+      for (const node of canvas.querySelectorAll<HTMLElement>(".demo-diagram [data-node]")) {
+        const rect = node.getBoundingClientRect();
+        add("rect", { x: String(rect.left - bounds.left), y: String(rect.top - bounds.top), width: String(rect.width), height: String(rect.height), fill: "none", stroke: "#e8c47c", "stroke-width": "1" });
+      }
+      for (const wire of canvas.querySelectorAll<SVGPathElement>(".demo-wire:not([data-edge='resource-branch-trunk'])")) {
+        const end = wire.getPointAtLength(wire.getTotalLength());
+        const start = wire.getPointAtLength(0);
+        const head = canvas.querySelector<SVGPolygonElement>(`.demo-arrowhead[data-arrow-for="${wire.dataset.edge}"]`);
+        const tip = head?.points.getItem(0);
+        for (const [point, color] of [[start, "#a7d8e4"], [end, "#f4b0a5"], [tip, "#c7eead"]] as const) {
+          if (point) add("circle", { cx: String(point.x), cy: String(point.y), r: "2.5", fill: color });
+        }
+      }
+      canvas.append(overlay);
+    });
+    await page.screenshot({ path: `visual-review/system-model-debug-${name}.png` });
+    await page.locator("[data-geometry-overlay]").evaluate(overlay => overlay.remove());
   }
 
   expect(apiRequests).toEqual([]);
   expect(pageErrors).toEqual([]);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  for (const [viewport, width, height] of [["desktop", 1440, 900], ["laptop", 1280, 800], ["mobile", 390, 844]] as const) {
+    await page.setViewportSize({ width, height });
   for (const [index, label] of ["Observe", "Propose", "Admit", "Deliver", "Commit", "Contain", "Investigate"].entries()) {
     await page.getByRole("button", { name: `${index + 1}. ${label}` }).click();
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
@@ -344,7 +388,9 @@ test("public product landing stays independent of the operator API at all review
       return paths.flatMap(edge => {
         const target = nodes.get(edge.dataset.target ?? "");
         if (!target) return [edge.dataset.edge ?? "unknown-target"];
-        const point = edge.getPointAtLength(edge.getTotalLength());
+        const head = canvas.querySelector<SVGPolygonElement>(`.demo-arrowhead[data-arrow-for="${edge.dataset.edge}"]`);
+        if (!head) return [edge.dataset.edge ?? "missing-arrowhead"];
+        const point = head.points.getItem(0);
         const x = point.x + canvasRect.left;
         const y = point.y + canvasRect.top;
         const verticalAligned = y >= target.top - 0.75 && y <= target.bottom + 0.75;
@@ -361,7 +407,8 @@ test("public product landing stays independent of the operator API at all review
           : [edge.dataset.edge ?? "unknown-edge"];
       });
     });
-    expect(activeTargetErrors, `active arrow tips should keep a 2.5px target gap during ${label}`).toEqual([]);
+    expect(activeTargetErrors, `active arrow tips should keep a 2.5px target gap during ${label} at ${viewport}`).toEqual([]);
+  }
   }
   await page.getByRole("button", { name: /7\. Investigate/ }).click();
   await expect(page.locator(".demo-story")).toContainText("Operators can inspect the evidence");

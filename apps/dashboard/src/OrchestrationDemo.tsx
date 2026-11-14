@@ -29,8 +29,8 @@ const diagramEdges: DiagramEdge[] = [
   { id: "resource-branch-trunk", source: "resource", target: "resource", activeStep: 0, from: "right", to: "right", kind: "branch-trunk" },
   { id: "resource-cost", source: "resource", target: "cost", activeStep: 0, from: "right", to: "left", kind: "branch" },
   { id: "resource-performance", source: "resource", target: "performance", activeStep: 0, from: "right", to: "left", kind: "branch" },
-  { id: "cost-admission", source: "cost", target: "gateway", activeStep: 1, from: "right", to: "left", fromAt: 0.8, toAt: 0.25 },
-  { id: "performance-admission", source: "performance", target: "gateway", activeStep: 1, from: "right", to: "left", fromAt: 0.2, toAt: 0.75 },
+  { id: "cost-admission", source: "cost", target: "gateway", activeStep: 1, from: "right", to: "left", fromAt: 0.85, toAt: 0.25 },
+  { id: "performance-admission", source: "performance", target: "gateway", activeStep: 1, from: "right", to: "left", fromAt: 0.15, toAt: 0.75 },
   { id: "admission-postgres", source: "gateway", target: "outbox", activeStep: 2, from: "right", to: "left" },
   { id: "postgres-publisher", source: "outbox", target: "publisher", activeStep: 3, from: "right", to: "left" },
   { id: "publisher-worker", source: "publisher", target: "worker", activeStep: 3, from: "bottom", to: "top" },
@@ -91,14 +91,14 @@ function arrowheadPoints(tip: Point, tangent: Point) {
   return `${tip.x},${tip.y} ${first.x},${first.y} ${second.x},${second.y}`;
 }
 
-function directedEdge(path: string, start: Point, targetAnchor: Point, targetSide: Anchor, solidTail = false): EdgeGeometry {
+function directedEdge(pathToBase: (base: Point) => string, start: Point, targetAnchor: Point, targetSide: Anchor, solidTail = false): EdgeGeometry {
   const targetNormal = outward(targetSide);
   const tangent = { x: -targetNormal.x, y: -targetNormal.y };
   const tip = offset(targetAnchor, targetNormal, arrowGap);
   const base = offset(tip, tangent, -arrowLength);
   const tailStart = offset(base, tangent, -4);
   return {
-    path,
+    path: pathToBase(base),
     start,
     targetAnchor,
     tip,
@@ -121,6 +121,12 @@ function curvePath(start: Point, end: Point, from: Anchor, to: Anchor) {
   return `M ${start.x} ${start.y} C ${control1.x} ${control1.y}, ${control2.x} ${control2.y}, ${beforeEnd.x} ${beforeEnd.y} L ${end.x} ${end.y}`;
 }
 
+function agentAdmissionPath(start: Point, base: Point) {
+  const span = base.x - start.x;
+  const reach = Math.min(18, span * 0.42);
+  return `M ${start.x} ${start.y} C ${start.x + reach} ${start.y}, ${base.x - reach} ${base.y}, ${base.x} ${base.y}`;
+}
+
 function getBranchPaths(resource: Bounds, cost: Bounds, performance: Bounds) {
   const paths: Record<string, EdgeGeometry> = {};
   const stackBelow = resource.bottom < Math.min(cost.top, performance.top);
@@ -136,10 +142,8 @@ function getBranchPaths(resource: Bounds, cost: Bounds, performance: Bounds) {
     };
     const costStart = { x: costEnd.x, y: splitY };
     const performanceStart = { x: performanceEnd.x, y: splitY };
-    const costTip = offset(costEnd, outward("top"), arrowGap);
-    const performanceTip = offset(performanceEnd, outward("top"), arrowGap);
-    paths["resource-cost"] = directedEdge(`M ${costStart.x} ${costStart.y} V ${costTip.y - arrowLength}`, costStart, costEnd, "top");
-    paths["resource-performance"] = directedEdge(`M ${performanceStart.x} ${performanceStart.y} V ${performanceTip.y - arrowLength}`, performanceStart, performanceEnd, "top");
+    paths["resource-cost"] = directedEdge(base => `M ${costStart.x} ${costStart.y} V ${base.y}`, costStart, costEnd, "top");
+    paths["resource-performance"] = directedEdge(base => `M ${performanceStart.x} ${performanceStart.y} V ${base.y}`, performanceStart, performanceEnd, "top");
     return paths;
   }
 
@@ -155,10 +159,8 @@ function getBranchPaths(resource: Bounds, cost: Bounds, performance: Bounds) {
   };
   const costStart = { x: branchX, y: costEnd.y };
   const performanceStart = { x: branchX, y: performanceEnd.y };
-  const costTip = offset(costEnd, outward("left"), arrowGap);
-  const performanceTip = offset(performanceEnd, outward("left"), arrowGap);
-  paths["resource-cost"] = directedEdge(`M ${costStart.x} ${costStart.y} H ${costTip.x - arrowLength}`, costStart, costEnd, "left");
-  paths["resource-performance"] = directedEdge(`M ${performanceStart.x} ${performanceStart.y} H ${performanceTip.x - arrowLength}`, performanceStart, performanceEnd, "left");
+  paths["resource-cost"] = directedEdge(base => `M ${costStart.x} ${costStart.y} H ${base.x}`, costStart, costEnd, "left");
+  paths["resource-performance"] = directedEdge(base => `M ${performanceStart.x} ${performanceStart.y} H ${base.x}`, performanceStart, performanceEnd, "left");
   return paths;
 }
 
@@ -194,23 +196,22 @@ function roundedPolyline(points: Point[], radius: number) {
 function feedbackPath(canvasWidth: number, source: Bounds, target: Bounds, nextRow: Bounds) {
   const start = anchor(source, "bottom", 0.15);
   const targetAnchor = anchor(target, "top");
-  const tip = offset(targetAnchor, outward("top"), arrowGap);
   const laneY = Math.max(start.y + 12, nextRow.top - 20);
-  const approachY = Math.max(4, tip.y - 22);
   const routeRight = nextRow.left < source.left;
   const railX = routeRight
     ? canvasWidth - Math.min(8, (canvasWidth - target.right) / 2)
     : Math.min(8, target.left / 2);
-  const base = { x: tip.x, y: tip.y - arrowLength };
-  const path = roundedPolyline([
-    start,
-    { x: start.x, y: laneY },
-    { x: railX, y: laneY },
-    { x: railX, y: approachY },
-    { x: tip.x, y: approachY },
-    base,
-  ], 10);
-  return directedEdge(path, start, targetAnchor, "top", true);
+  return directedEdge(base => {
+    const approachY = Math.max(4, base.y - 14);
+    return roundedPolyline([
+      start,
+      { x: start.x, y: laneY },
+      { x: railX, y: laneY },
+      { x: railX, y: approachY },
+      { x: base.x, y: approachY },
+      base,
+    ], 10);
+  }, start, targetAnchor, "top", true);
 }
 
 function responsiveAnchors(edge: DiagramEdge, source: Bounds, target: Bounds): [Anchor, Anchor] {
@@ -239,10 +240,12 @@ function getWireGeometry(canvas: DOMRect, source: DOMRect, target: DOMRect, edge
   const [fromSide, toSide] = responsiveAnchors(edge, from, to);
   const start = anchor(from, fromSide, edge.fromAt);
   const targetAnchor = anchor(to, toSide, edge.toAt);
-  const tip = offset(targetAnchor, outward(toSide), arrowGap);
-  const base = offset(tip, { x: -outward(toSide).x, y: -outward(toSide).y }, -arrowLength);
-  const path = curvePath(start, base, fromSide, toSide);
-  return directedEdge(path, start, targetAnchor, toSide);
+  const agentToAdmission = (edge.id === "cost-admission" || edge.id === "performance-admission") &&
+    fromSide === "right" && toSide === "left";
+  return directedEdge(
+    base => agentToAdmission ? agentAdmissionPath(start, base) : curvePath(start, base, fromSide, toSide),
+    start, targetAnchor, toSide,
+  );
 }
 
 export function OrchestrationDemo() {

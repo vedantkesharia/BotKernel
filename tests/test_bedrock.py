@@ -35,6 +35,59 @@ def _settings(**changes):
     values.update(changes)
     return BedrockSettings(**values)
 
+
+@pytest.mark.parametrize('mutation', ['valid', 'fenced', 'missing', 'string_integer', 'boolean_integer', 'invalid_decision', 'extra_field', 'prose', 'array', 'duplicate', 'truncated', 'tool_block'])
+def test_strict_response_contract_and_safe_diagnostics(mutation):
+    body={'decision':'NO_OP','resource':'service-a','proposed_delta':0,'reason':'secret-model-content','evidence_references':['resource:service-a'],'uncertainties':[]}
+    if mutation=='missing': del body['uncertainties']
+    if mutation=='string_integer': body['proposed_delta']='0'
+    if mutation=='boolean_integer': body['proposed_delta']=False
+    if mutation=='invalid_decision': body['decision']='EXECUTE'
+    if mutation=='extra_field': body['private-secret-field']='private-secret-value'
+    response=_response(body)
+    text=json.dumps(body)
+    if mutation=='fenced': text='```json\n'+text+'\n```'
+    if mutation=='prose': text='Here is the decision: '+text
+    if mutation=='array': text='['+text+']'
+    if mutation=='duplicate': text=text[:-1]+',"decision":"NO_OP"}'
+    response['output']['message']['content']=[{'text':text}]
+    if mutation=='tool_block': response['output']['message']['content'].append({'toolUse':{'name':'do-not-run'}})
+    if mutation=='truncated': response['stopReason']='max_tokens'
+    response['ResponseMetadata']={'RequestId':'request-1234','HTTPStatusCode':200}
+    client=FakeConverseClient(response)
+    sdk=_sdk(client)
+    if mutation=='valid':
+        decision,provenance=sdk.invoke_json(run_id='once',system='safe',payload={},response_type=AgentDecision)
+        assert decision.decision=='NO_OP'
+        assert provenance['request_id']=='request-1234'
+        return
+    with pytest.raises(BedrockProviderError) as caught:
+        sdk.invoke_json(run_id='once',system='safe',payload={},response_type=AgentDecision)
+    diagnostics=caught.value.diagnostics
+    assert diagnostics['request_id']=='request-1234'
+    assert diagnostics['usage']=={'inputTokens':123,'outputTokens':45}
+    assert diagnostics['response_received'] is True
+    assert 'secret-model-content' not in json.dumps(diagnostics)
+    assert 'private-secret' not in json.dumps(diagnostics)
+    assert diagnostics['response_structure']['content_is_list']
+    if mutation=='missing': assert diagnostics['validation_errors']==[{'category':'missing','path':['uncertainties']}]
+    if mutation=='extra_field': assert diagnostics['validation_errors'][0]['path']==['<unknown-field>']
+    with pytest.raises(BedrockProviderError,match='call_limit_exceeded'):
+        sdk.invoke_json(run_id='once',system='safe',payload={},response_type=AgentDecision)
+    assert len(client.calls)==1
+
+
+def test_validation_log_redacts_untrusted_keys_and_error_values():
+    import logging
+    from botkernel.observability import JsonLogFormatter
+    record=logging.LogRecord('test',logging.WARNING,'',0,'bedrock failure',(),None)
+    record.event='bedrock_failure'
+    record.bedrock_diagnostics={'validation_errors':[{'category':'missing','path':['uncertainties']},{'category':'extra_forbidden','path':['secret-key'],'input':'secret-value'}], 'usage':{'inputTokens':12,'secret':'secret-value'}}
+    output=JsonLogFormatter().format(record)
+    assert 'uncertainties' in output
+    assert 'secret-key' not in output and 'secret-value' not in output
+    assert json.loads(output)['bedrock']['usage']=={'inputTokens':12}
+
 def _sdk(client, settings=None, *, budget_reserver=None):
     sdk=BedrockConverse(settings or _settings(),session_factory=lambda **kwargs: None,
                         budget_reserver=budget_reserver or (lambda run_id, tokens: None))
