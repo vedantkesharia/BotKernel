@@ -241,3 +241,7 @@ The commands assume the approved operator has already copied artifacts securely 
 ### Deployment status
 
 On 2026-11-12, current-source backend/dashboard images ran on the existing EC2 instance with migration `0009`, private operator and scoped-agent authentication, healthy PostgreSQL/Kafka/Redis, and CloudWatch delivery. Eight demo actions each produced one simulator effect; the incident recurred after verified recovery and its deterministic evidence-backed investigation was persisted and retrieved idempotently. The private host-loopback dashboard and authenticated proxy were checked, not a browser or SSM tunnel. The instance is stopped, not terminated; encrypted EBS, Docker volumes, image repositories, logs, backups and demo evidence remain. Compute charges ceased, but retained resources can still incur charges.
+
+
+## Latest existing-infrastructure acceptance - 2026-11-14
+Existing EC2 and scoped Bedrock role reused; no Terraform/IAM/network change or new AWS infrastructure. Backend-only immutable releases deployed; actual Bedrock3workflows and deterministic8action scenario verified, private browser/monitoring passed. EC2 STOPPED verified07:11UTC; retained EBS/data/images/logs remain. terraform fmt -check and validate -no-color passed offline in this continuation. Earlier EC2 public-IP Terraform drift was not changed or suppressed; do not apply an unrelated saved plan. See AWS_DEMO_READY.md and DEMO_RECORDING_GUIDE.md for exact evidence and later approval-gated operating instructions.

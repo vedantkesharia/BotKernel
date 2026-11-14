@@ -20,10 +20,10 @@ bedrock:
   modelId: us.amazon.nova-micro-v1:0
   region: us-east-2
   profile: ""
-  maxOutputTokens: 512
+  maxOutputTokens: 1024
   maxCallsPerRun: 1
-  maxCallsPerDay: 3
-  maxTokensPerDay: 20000
+  maxCallsPerDay: 12
+  maxTokensPerDay: 80000
   requestTimeoutSeconds: 10
   agentProvider: deterministic_mock
   investigatorProvider: deterministic_mock

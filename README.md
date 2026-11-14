@@ -4,7 +4,7 @@
 
 BotKernel is a distributed AgentOps platform for detecting and containing harmful interactions between autonomous agents sharing infrastructure. It combines durable action execution, a deterministic Collective Stability Controller, evidence-grounded incident investigation, and an operator dashboard. Unlike a chatbot or agent-framework demo, its core contribution is controlling shared-system side effects and retaining evidence across asynchronous execution.
 
-> **Implementation status (2026-11-12):** The current backend and dashboard images were deployed to a private EC2 demo and exercised with a deterministic incident and investigation. The instance was stopped afterward; retained storage remains billable. A bounded Bedrock Cost attempt ended with an ambiguous client error: no successful live inference or usage was observed. See [acceptance details](docs/BEDROCK_ACCEPTANCE.md).
+> **Verified status (2026-11-14):** Private EC2/Compose execution, authenticated dashboard, monitoring and a fresh eight-action incident/recovery/recurrence demonstration passed live checks. Cost and Performance returned genuine advisory Nova Micro decisions, and a Bedrock Investigator report was persisted. EC2 was stopped afterward; retained storage remains billable. Kubernetes runtime remains unverified. See [acceptance details](docs/BEDROCK_ACCEPTANCE.md) and [current demo status](docs/AWS_DEMO_READY.md).
 
 ## Architecture
 
@@ -96,7 +96,7 @@ flowchart TB
   style L5 fill:#fffbf6,stroke:#e6d5c6,color:#334155
 ```
 
-LangGraph Cost and Performance agents submit proposals through the FastAPI gateway, which records reservations and an outbox in PostgreSQL's authoritative ledger. Kafka delivers events at least once to workers that apply simulator effects; the recovery service retries or reconciles work, and PostgreSQL persists effects, incidents and investigation reports. The PostgreSQL boxes show logical views of the same database. The committed-effect graph and deterministic Collective Stability Controller detect harmful interactions and apply resource holds; the LangGraph Investigator examines evidence on demand. The React dashboard and Experiment Lab access operational data through the API. Redis is advisory, and Bedrock reasoning is optional and unverified live. Prometheus, Grafana, OpenTelemetry and Jaeger provide observability. Docker Compose supports local operation; the Helm chart is runtime-unverified, and Terraform describes the private single-host AWS demo. See [architecture details](docs/ARCHITECTURE.md).
+LangGraph Cost and Performance agents submit proposals through the FastAPI gateway, which records reservations and an outbox in PostgreSQL's authoritative ledger. Kafka delivers events at least once to workers that apply simulator effects; the recovery service retries or reconciles work, and PostgreSQL persists effects, incidents and investigation reports. The PostgreSQL boxes show logical views of the same database. The committed-effect graph and deterministic Collective Stability Controller detect harmful interactions and apply resource holds; the LangGraph Investigator examines evidence on demand. The React dashboard and Experiment Lab access operational data through the API. Redis is advisory, and Bedrock reasoning is optional, disabled by default, and verified in bounded advisory-only live acceptance. Prometheus, Grafana, OpenTelemetry and Jaeger provide observability. Docker Compose supports local operation; the Helm chart is runtime-unverified, and Terraform describes the private single-host AWS demo. See [architecture details](docs/ARCHITECTURE.md).
 
 ## Execution and recovery
 
@@ -114,10 +114,10 @@ LangGraph Cost and Performance agents submit proposals through the FastAPI gatew
 | Durable execution | PostgreSQL ledger, quota/reservation admission, transactional outbox, Kafka workers, recovery | Simulator effects; at-least-once delivery, not universal exactly-once |
 | Agents | Independent LangGraph Cost and Performance workflows | Deterministic providers are default; model proposals remain advisory when action execution is disabled |
 | Stability | Committed-effect graph, directional reversal evidence, selective holds, recovery verification and recurrence handling | Deterministic controller; evaluated in simulation, not production-scale proof |
-| Investigation | Evidence retrieval, citation validation, persisted reports and idempotent request handling | Deterministic by default; live Bedrock inference unverified |
+| Investigation | Evidence retrieval, citation validation, persisted reports and idempotent request handling | Deterministic by default; bounded Bedrock report inference verified live |
 | Dashboard | Landing, Mission Control, Agent Fleet, Effect Graph, Investigations, Experiment Lab | Single-operator bearer authentication; keep private/loopback |
 | Observability | Prometheus/Grafana and OpenTelemetry/Jaeger integrations | See [observability notes](docs/OBSERVABILITY.md) for scope |
-| Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | Deterministic EC2 demo verified and stopped on 2026-11-12; Kubernetes runtime unverified |
+| Deployment | Docker Compose, Terraform/private AWS assets and local Kubernetes Helm templates | EC2/SSM demo and Bedrock verified; stopped on 2026-11-14; Kubernetes runtime unverified |
 
 ## Evaluation
 

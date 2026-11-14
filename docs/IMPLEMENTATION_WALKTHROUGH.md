@@ -1,5 +1,7 @@
 # Implementation walkthrough
 
+> **Latest runtime evidence (2026-11-14):** Backend release ready-bedrock-20261115-02, genuine Cost/Performance/Investigator inference, authenticated private dashboard, fresh eight-action controller recurrence and all AWS monitoring verified. EC2 stopped after acceptance. See AWS_DEMO_READY.md for exact artifacts and remaining local Kubernetes limitation. Historical paragraphs below are not current deployment status.
+
 Current deployment/readiness continuation: [AWS_DEMO_READY.md](AWS_DEMO_READY.md). AWS identity discovery on 2026-11-13 failed because the CLI login expired; no current cloud/browser/model success is asserted. Local fixes add explicit private-Compose Bedrock acceptance, shared metrics-file authentication, bounded one-cycle AWS agents and a proxy timeout compatible with supervised investigation. None of these changes has been deployed to ECR/EC2. Historical runtime results below remain historical.
 
 ## Two-minute pitch

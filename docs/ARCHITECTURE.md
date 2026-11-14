@@ -1,8 +1,58 @@
 # Architecture
 
+## Verified deployment and execution boundaries (2026-11-14)
+
+The live deployment is one private EC2 host running Docker Compose. It is not
+Kubernetes or EKS. The same application has a separate local Helm deployment
+definition; local cluster runtime acceptance must be reported independently.
+
+```mermaid
+flowchart LR
+    Owner[Operator browser] -->|Private SSM tunnel| UI[React / Nginx]
+    UI -->|Authenticated API proxy| API[FastAPI admission]
+    Agents[Independent Cost / Performance LangGraphs] -->|Observe and propose| API
+    Agents --- Checkpoints[Separate SQLite checkpoints and proposal records]
+    Agents -.->|Optional advisory reasoning| Nova[Bedrock Nova Micro Converse]
+    API -->|Quota and version locks; reservation + outbox transaction| PG[(PostgreSQL)]
+    PG --> Publisher[Outbox publisher]
+    Publisher -->|At-least-once delivery; trace context| Kafka[Kafka]
+    Kafka --> Worker[Execution worker]
+    Worker -->|Idempotent receipt and committed effect| PG
+    PG --> Simulator[Versioned simulated resource capacity]
+    PG --> Controller[Deterministic Stability Controller]
+    Controller -->|Selective holds; verification; recurrence| PG
+    PG --> Investigator[Supervised read-only LangGraph Investigator]
+    Investigator -.->|Evidence-grounded advisory analysis| Nova
+    Investigator -->|Validated durable report| PG
+    Recovery[Recovery / reconciliation] --> PG
+    Redis[(Redis)] -.->|Advisory state and atomic inference-budget guard| Agents
+    Redis -.-> Investigator
+    API --> Telemetry[Prometheus / Grafana; OTel / Jaeger; CloudWatch]
+    Publisher --> Telemetry
+    Worker --> Telemetry
+    Controller --> Telemetry
+```
+
+PostgreSQL owns execution correctness. Redis is advisory for heartbeat/decision
+state, but the shared inference-budget guard deliberately fails closed when its
+Redis state is unavailable. That guard limits application-estimated tokens and
+calls; it is not an AWS billing cap. Bedrock cannot change resource state directly.
+All demonstrated capacity and latency values describe the simulator, not EC2
+resizing or measured cloud latency.
+
+Live evidence now includes valid Cost and Performance advisory model decisions,
+a persisted Bedrock Investigator report, and a separate deterministic eight-action
+driver run with one published outbox row, receipt and committed effect per action.
+The driver is not two autonomous LLM processes. Its incident reached HOLD,
+sustained VERIFIED recovery and recurrence; the later observed state was VERIFIED.
+A correlated trace includes API, publisher and worker spans. These bounded proofs
+do not establish general exactly-once external execution, high availability or
+production readiness. See the latest AWS handoff for identifiers, shutdown state
+and current verification limitations.
+
 ## Local-first system
 
-Independent Cost and Performance agent processes observe simulator telemetry and submit proposals only through FastAPI admission. PostgreSQL owns quotas, resource reservations, the action ledger, the transactional outbox, committed effects, incidents, investigation reports and durable heartbeat timestamps. The publisher sends outbox events to Kafka; workers execute idempotent simulated effects and reconcile ledger state. A recovery worker retries bounded work and escalates ambiguous or exhausted actions. Redis contains disposable heartbeat and inference-budget hints; it is not the correctness authority.
+Independent Cost and Performance agent processes observe simulator telemetry and submit proposals only through FastAPI admission. PostgreSQL owns quotas, resource reservations, the action ledger, the transactional outbox, committed effects, incidents, investigation reports and durable heartbeat timestamps. The publisher sends outbox events to Kafka; workers execute idempotent simulated effects and reconcile ledger state. A recovery worker retries bounded work and escalates ambiguous or exhausted actions. Redis contains advisory heartbeat/decision state and a fail-closed atomic inference-budget guard; PostgreSQL remains the execution correctness authority.
 
 The gateway serializes quota admission and idempotency with PostgreSQL advisory transaction locks. It reserves resource capacity and writes the action/outbox in one transaction. Workers check simulator receipts before replaying effects. Finalization takes the quota lock before changing capacity. The global admission lock is intentionally simple but limits throughput; no production throughput claim is made. Migrations 0001-0009 define the current schema; the root `schema.sql` remains a legacy reference.
 
@@ -18,7 +68,7 @@ The optional local Compose profile provides Prometheus, provisioned Grafana, an 
 
 ## AWS single-host deployment model
 
-Terraform and Compose describe an optional private, single-host AWS demonstration using EC2, ECR, CloudWatch Logs and SSM. No live cloud state is asserted here. Runtime credentials belong in host-only secret files or an instance role, never in source or images. Operator routes require a bearer credential but application ports must remain private. Review [the Terraform guide](../infra/terraform/README.md) for deployment prerequisites and approval gates. This design is not highly available; backup/restore has not been verified, and cloud storage and runtime can incur charges.
+Terraform and Compose describe an optional private, single-host AWS demonstration using EC2, ECR, CloudWatch Logs and SSM. Bounded AWS live acceptance is recorded in the latest handoff; running/stopped state must always be checked separately. Runtime credentials belong in host-only secret files or an instance role, never in source or images. Operator routes require a bearer credential but application ports must remain private. Review [the Terraform guide](../infra/terraform/README.md) for deployment prerequisites and approval gates. This design is not highly available; backup/restore has not been verified, and cloud storage and runtime can incur charges.
 
 ## Local Kubernetes templates
 

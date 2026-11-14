@@ -158,3 +158,30 @@ PostgreSQL, Kafka and Redis have persistent StatefulSet claims; each LangGraph r
 To stop workloads while retaining data, use `helm uninstall botkernel --namespace $Namespace --kube-context $Context` only after reviewing ownership. Do not delete the namespace, PVCs or volumes without explicit data-retention approval. Helm uninstall is not a data cleanup or disaster-recovery procedure.
 
 No cluster runtime, authenticated scrape, dashboard, trace or persistent-state recovery has been verified here. Static `helm lint`/rendering is not runtime acceptance.
+
+## Final runtime diagnosis and compatible tooling - 2026-11-14
+
+After EC2 shutdown, actual local inspection confirmed docker-desktop current context, Kubernetes API127.0.0.1:6443 actively refuses connections, Docker Desktop Kubernetes status disabled/stopped(kubeadm,configured1node,v1.36.1). KubernetesEnabled=False in Docker settings. This is not an application Helm failure. Effective Docker VM RAM7.58GiB, only about1.16GiB available among historical projects. No Kubernetes server was enabled, no release/namespace/PVC/pod created, and no Docker/WSL restart or unrelated container stop occurred. Runtime acceptance is INCOMPLETE.
+
+Official current setup: open Docker Desktop Dashboard -> Kubernetes -> Create cluster (older UI may expose Settings -> Kubernetes -> Enable). FIRST arrange enough memory by explicitly approving which historical projects may be stopped; preserve their volumes. This chart recommends6GiB free for core acceptance. If Docker asks for Apply/restart, stop and obtain owner authorization; do not reset cluster/data or restart Desktop automatically. Current CLI exposes status/images/reset-cluster, not a safe enable command. Never use reset-cluster to solve disabled status. See https://docs.docker.com/desktop/use-desktop/kubernetes/.
+
+Tooling corrected: older Helm3.17.3 supports Kubernetes1.32-1.29, not the configured1.36.1. A private official Helm3.21.0 was downloaded and SHA256 verified3ea6b8383e6c0b7ce45d06a5746313b8e9225edd88d42f4f64582ff3792d7b55; no global PATH change. Executable .secrets/tooling/helm-3.21.0/windows-amd64/helm.exe. Helm3.21 supports1.36-1.33 (https://helm.sh/docs/v3/topics/version_skew/). Strict lint passed; default,agents-enabled,observability-enabled renders passed with --kube-version1.36.1. Earlier3.17static checks also passed. YAML20/22/34objects parsed; all Service types privateClusterIP and disabled default gates checked. These are static checks, not server-side schema admission or runtime proof. Chart allowance values aligned to12/day,80Kestimated/day,1024output while paid/action gates remainoff.
+
+After owner enables a healthy local cluster and frees resources, follow the existing fresh namespace/private Secrets procedure above, using compatible Helm:
+
+```powershell
+$Helm = '.\.secrets\tooling\helm-3.21.0\windows-amd64\helm.exe'
+$Context = 'docker-desktop'
+$Namespace = 'botkernel-acceptance-' + (Get-Date -Format yyyyMMddHHmmss)
+kubectl --context $Context get nodes
+# Require Ready node and sufficient allocatable/headroom BEFORE namespace/release creation.
+# Create private credential files and Secrets as described above; never echo credentials.
+# Use existing locally built images; no ECR credentials or AWS profile in the cluster.
+& $Helm upgrade --install botkernel infra/kubernetes/botkernel --kube-context $Context --namespace $Namespace --set backendImage=botkernel-api:ready-bedrock-20261115-02 --set dashboardImage=botkernel-dashboard:ready-20261114-01 --set agents.enabled=false --set observability.enabled=false --wait --wait-for-jobs --timeout 15m
+kubectl --context $Context -n $Namespace get pods,svc,pvc
+kubectl --context $Context -n $Namespace port-forward svc/dashboard 18080:8080
+```
+
+Namespace/Secrets must be created by the guarded earlier procedure; command alone is not a complete install. Check local dashboard image tag exists before using it; if unavailable, build existing dashboard Dockerfile locally (no AWS push). Use one bounded driver in the new isolated simulator ONLY after readiness/quota checks, inspect outbox/receipts/effects, and verify deployment rollout and PVC retention. Optional agent Deployments run deterministic policies continuously by default until scaled/stopped; do not enable them unintentionally or describe them as one-shot Jobs. Keep all Bedrock/AI-action gatesoff for local Kubernetes acceptance. Do not confuse it with already verified EC2Compose or create EKS.
+
+For non-destructive pause in the dedicated namespace: kubectl --context $Context -n $Namespace scale deployments --all --replicas=0; then scale statefulsets --all --replicas=0. Resume deliberately with the chart/rollout procedure. Do not delete namespace/PVCs/volumes to stop workloads. No live Kubernetes result is claimed until actual pods/probes/distributed workflow/restart checks pass.

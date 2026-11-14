@@ -1,5 +1,7 @@
 # AWS demo readiness — 2026-11-13
 
+> **Latest verified result (2026-11-14):** AWS application, all three Bedrock workflows, the fresh eight-action scenario, private browser access and monitoring passed live acceptance. EC2 is now STOPPED; all tunnels are closed. Read **Final AWS completion evidence** below for actual IDs, tests, costs and remaining Kubernetes blocker. Earlier sections are historical.
+
 This is a readiness record, not a live-deployment certificate. Latest read-only discovery after owner login verified the intended account and the existing EC2 instance STOPPED. No AWS mutation or inference was performed. Historical deployment evidence is in IMPLEMENTATION_WALKTHROUGH.md and the private handoff. Existing frontend edits were preserved.
 
 ## Latest authorized read-only discovery after login
@@ -277,4 +279,57 @@ Pending ONE explicit owner approval: existing EC2 start for<=2hours from actual 
 
 ## Revised acceptance authorization - 2026-11-14
 Owner now authorizes up to12NEW tracked Nova Micro invocations and10USD estimated additional costs. Application limits12TOTAL/day,80Kestimated tokens/day,1024output/call; existing reservations remain counted. No reason to wait untilNov15 solely for old3call cap. Same-day historical1call leaves at most11new reservations if unchanged. Original Redis store/keys and failed artifacts MUST remain intact. See latest BEDROCK_ACCEPTANCE.md for actual AWS quotas,76+54passing focused tests and controlled validation-failure policy. No AWS changes or calls to paid models performed. EC2 runtime window and backend-only publication/deployment approval still pending. Proposed window2hours; no new fixtures/final scenario/IAM changes. Safe flags remain disabled.
+
+
+## Final AWS completion evidence - 2026-11-14
+
+This section supersedes earlier readiness-only and failed-acceptance summaries. EC2 was actually started, the backend deployed, all three Bedrock workflows validated across four new calls, the final eight-action scenario executed once, and private dashboard/monitoring checked. Application services were quiesced07:09:21UTC; EC2 STOPPED independently confirmed and recorded07:11:00UTC. Owned SSM sessions terminated. URLs below are verified access routes from this run, NOT currently running services.
+
+### Release and preserved state
+
+- Backend ready-bedrock-20261115-02 digest `sha256:08a005d680faf5da82ab6d6562e1ba6977b3684b93f3201c8b58bada47a180a1`. First release ready-bedrock-20261115-01 digest `sha256:7582f4c69b04d5f93b2021940a97dafcf6bdeaaad10423433037f9307736aad8` retained.
+- Dashboard unchanged: `sha256:de13a9cc5e9342c89a78f9043fe3ca3d2cb7eefd0451c10529c1196c25318eed`.
+- PostgreSQL0009,24SUCCEEDED effects/actions,4investigation records; total allocation20/quota20. Demo resource aws-accept-cost-ade1070aa59e capacity5/version10. Incident2 ESCALATED unchanged. Incident3 observed HOLD->verification->VERIFIED->recurrence/HOLD, later VERIFIED with2interventions/1recurrence.
+- ORIGINAL runtime Redis20261114 remains5calls/20540reserved tokens, including historical Cost failure1call/1816tokens. No reset/store switch. Four new requests all returned; one failed validation is retained. Atomic12/day,80Kestimated/day,1024output guards unchanged. Inference/action gates restoredfalse and default providers deterministic.
+- Private backups under `/opt/botkernel/backups/final-acceptance-20261114/`; postgres-final.dump SHA256 f1ff9aaf94e2a48054d5da54d3927320f7eaf8af98d29d94248f4b0b16ff5e91; bedrock-checkpoints-final.tar f23a728bd70226d7046609ea9e73615110ff58bce3c601293e6b7b16f7493b83; agent-checkpoints-final.tar3a5ff1f0e41b5cbed260052e3b30365756eba83013310de70cbd3ad9fc6340e6. Backups verified/created, not a restore drill. Older backups preserved.
+
+### Genuine model evidence (not mocked)
+
+| Case | Result | AWS request ID | Actual input/output tokens |
+|---|---|---|---|
+| Cost | PASSED, NO_OP advisory | 9e3cf3c3-d744-4b02-bdeb-6d94a2412fbe |561/104|
+| Performance | PASSED, NO_OP advisory | d9b1c255-10b1-479b-831e-fed605042c01 |557/102|
+| Investigator first response | FAILED strict root-schema validation | 3d3ada31-d859-49d2-9367-2db6166a4b94 |1963/430|
+| Investigator controlled new attempt | PASSED, persisted report | e8cc9839-0df0-4308-abd8-1ca3e4e54341 |2113/189|
+
+All used EC2 iam-role and us.amazon.nova-micro-v1:0 in us-east-2. Model ID provenance identifies the requested profile, not a separately returned destination-region model. The failed three-case artifact remains FAILED; do not rewrite it as PASSED. Cost/Performance reasoning run prefix bedrock-acceptance:a290e221-b9bf-4295-a9ef-c7cee867e336, role suffixes:cost and:performance. Checkpoints `/app/benchmarks/results/bedrock-final-20261114-01.sqlite`, separate agent-cost/agent-performance threads. New successful Investigator report `ac1131cf-e990-4cdb-9d06-95dbea1eee2f`; failed report51922a64-2b9d-4671-a49a-1e6c6206297b preserved. New investigator artifact bedrock-final-investigator-02.json.
+
+Investigator failure diagnostics confirmed HTTP200/end response, all8required root fields missing and1unexpected root field; exact unexpected key intentionally redacted. Strengthened prompt explicitly lists all8root fields, string/array types, forbids wrappers/schema echo and treats evidence as untrusted. No unwrapping/coercion/schema weakening. Offline tests passed before one manually tracked NEW Investigator-only invocation. No network/SDK ambiguity was retried, and successful agent calls were not repeated. The successful report returned an EMPTY hypotheses array, with validated incident:2 support and advisory narrative; do not invent nonempty model hypotheses. NO_OP decisions and schema/citation safety do not prove optimal reasoning; the Performance capacity explanation merits human review. All modeled capacity/latency remains simulator data even where model prose loosely calls it an AWS resource.
+
+### Independent processes and final distributed scenario
+
+Two actual separate deterministic LangGraph containers ran once and exited0 with NO_OP: Cost d5b5ddf5-b475-4872-9a54-a5bf934b989f on service-a, Performance f4508fcb-c88b-4554-abb1-35a08fffc068 on bk-cloud-demo-70f62eb. Persistent checkpoint files cost-final-20261114.sqlite and performance-final-20261114.sqlite in existing checkpoint volume. These are distinct from the sequential Bedrock acceptance harness; do not claim concurrent autonomous Bedrock processes. Latest Fleet cache may show these deterministic decisions; prior Bedrock provenance remains in durable acceptance files.
+
+Approved one-unit gateway release action feb92090-f608-4d12-bc9a-6a6791cda87b changed4->3/version1->2, allocation19->18. Exactly ONE final driver run final-20261114-01 followed trajectory3->2->4->3->5 then5->3->5->3->5, allocation peak20. Eight action IDs in `infra/deploy/final-eight-action-demo-result.json`; first74ebe96f-cbe1-4f38-855e-d2586a72d422, lastf66ade3c-5748-4d41-ab4a-c4c3f6c677bb. Incident3 deterministic report `ea95fd08-2d65-49bf-9ccc-0479321b17f6`,9facts including preparatory action,7reversal inferences,1deterministic hypothesis. All9new actions independently checked:1published outbox,1receipt,1effect each. Fresh graph12nodes/25edges/9effects. No timestamps or incident history rewritten.
+
+### Browser and observability proof
+
+Actual SSM-tunneled AWS landing and all5console routes passed authenticated Playwright smoke; graph incident3 filtering and node inspection worked; incident2 rendered real Bedrock model/2113/189 usage and saved report. Read-only APIs200, no page exceptions or5xx in successful smoke. First harness pass had an authentication timing error after full-page reload; fixed the HARNESS to sign in again because tokens intentionally live only in memory, no application auth weakening. Screenshots manually inspected for graph, Bedrock report and Grafana execution data. Actual monitoring:5/5targetsUP, effect gauge24, all3Grafana dashboards with real data. Jaeger trace `d8d4205ac0b7fd36fc8a247fab913e48`,14spans across API/publisher/worker for action74ebe96f-cbe1-4f38-855e-d2586a72d422; matching CloudWatch admitted/published/handled entries06:54:33UTC. All13running app/monitor containers had0restarts/noOOM; host5886MiB available of7779MiB. Secret directory0700/token0600; no ingress rules. Monitoring used retained restricted-root Prometheus override with cap_dropALL/no-new-privileges. Trace/metrics snapshots saved before shutdown; live Jaeger and Prometheus tmpfs history are ephemeral and may not reappear on restart.
+
+Verified private URLs during run: http://127.0.0.1:18090/ and /app,/app/agents,/app/graph?resource=aws-accept-cost-ade1070aa59e,/app/incidents,/app/experiments; Grafana13000/d/botkernel-system,/d/botkernel-execution,/d/botkernel-collective; Prometheus19090/targets; Jaeger16686/trace/d8d4205ac0b7fd36fc8a247fab913e48. All currently unavailable because EC2 stopped/tunnels closed. Grafana titles saying local simulation describe the workload; scrape data was actually AWS-hosted.
+
+### Tests and cost
+
+Final backend source archived with SHA2566ec09f4c09d69179ffd9392d7827f7a48039b7ba4ece843724c06ab288a26ed6: complete isolated PostgreSQL/Kafka suite on existing EC2 passed221,skipped1(local Prometheus binary unavailable),failed0,1LangGraph warning,138.78s,exit0 including fixture cleanup. Used a NEW private PostgreSQL database/topic and disposable private test Redis; application workers quiesced during test, original DB and budget unchanged. No new AWS infrastructure. First local run214passed/7failed/1skipped,379.22s under severe memory pressure; explicit ENOMEM and subprocess-startup failures retained, not disguised as a passing run. Cloud rerun passed without relaxing assertions. Focused before release:76provider/acceptance tests,54agent/observability tests; prompt correction62provider/investigation tests. Frontend build passed23.85s with existing605KB bundle warning,Vitest6passed. Compilation/Compose/Terraform fmt+validate passed. Helm static and Kubernetes runtime limitations are in the Kubernetes runbook.
+
+EC2 launch06:36:40UTC, stop requested07:10:04UTC, STOPPED verified07:11:00UTC, conservative duration34m21s against10:36:37UTC deadline. Estimated compute0.05482USD, IPv4~0.00286, gp3 period~0.00636, four new returned-usage inference~0.00029729USD; about0.0644USD before variable ECR/logging/transfer. Actual invoice not verified. Existing100GiB gp3 retains~8USD/month at prior quoted rate plus retained ECR/logs; credits not assumed. Read-only Free Tier API reported94.29USD remaining credits, FREE/ACTIVE through2027-05-05; eligibility/billing not guaranteed. No IAM/Terraform/network/instance-size changes. No Git stage/commit/push by this agent; an external commit8e18c9a appeared during execution and was preserved.
+
+
+## Exact rehearsal procedure
+See the latest Final rehearsal access and boundaries section in DEMO_RECORDING_GUIDE.md for the tested port mapping, bounded startup, browser actions, freshness/replay restrictions and verified stop procedure. No additional deployment or Bedrock call is needed merely to inspect saved provenance. All URLs currently offline by deliberate shutdown. Kubernetes runtime is separately blocked by disabled Docker Desktop Kubernetes and insufficient local headroom.
+
+
+
+## Final status
+AWS/Bedrock/distributed scenario/dashboard/monitoring VERIFIED LIVE; EC2 STOPPED and inferenceoff. Current-source backend221passed/1skipped/0failed on isolatedAWSfixtures, frontendbuild+6tests passed. CompatibleHelm3.21staticchecks/YAMLpassed; actualKubernetesruntimeINCOMPLETE: DockerDesktopKubernetesdisabled,1.16GiBlocalheadroom,ownerUI/resourcesneeded. No unrelatedcontainerstop/reset/restart. Finalrecordingneedsnewapprovedwindow and, if freshgraphdesired, a separately reviewed quota/lifecycle plan; currentallocation20andcompletedincident3makeautomaticdriverreplayunsafe. See latestKubernetesREADMEandDEMO_RECORDING_GUIDE. No Git staging/commit/push byagent.
 

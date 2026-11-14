@@ -1,5 +1,7 @@
 # BotKernel Demo Environment Readiness and Recording Guide
 
+> **Latest result (2026-11-14):** The AWS eight-action demonstration and genuine Bedrock advisory acceptance have now completed. EC2 is STOPPED, credentials remain private and tunnels closed. Use the final rehearsal section below and AWS_DEMO_READY.md. Historical discovery below is retained for context, not current status.
+
 Latest continuation: [AWS_DEMO_READY.md](AWS_DEMO_READY.md) is the current startup, approval, private-tunnel and rehearsal checklist. AWS identity lookup now fails with expired login, so all current cloud state and browser access are UNKNOWN, regardless of historical observations below. No fresh oscillation run or final dataset was created. Do not invoke `botkernel.live_demo --help`: it has no CLI parser and would execute the demo.
 
 **Checked:** 2026-11-13
@@ -248,3 +250,96 @@ Do not stop or remove the existing historical test projects to make room without
 ## Verified continuation — 2026-11-14
 
 AWS browser smoke passed landing plus /app, /app/agents, /app/graph, /app/incidents, /app/experiments via actual SSM18090->8080; all API checks200, zero pageerrors. Grafana13000 three dashboards, Prometheus19090/targets and Jaeger16686/trace/8bafab00abf74a0da4a6273c72653d3f rendered. These are verified historical URLs, now unavailable: all task-owned tunnels closed and EC2 stopped05:33:39UTC. Operator token is protected in ignored .secrets/aws-console-access/operator.token; never show it. No final eight-action scenario was run. Incident2 is ESCALATED and has no report because Bedrock stopped at failed Cost validation; do not imply live AI completion. Existing effects now exceed1h graph window, so recording needs a separately approved fresh scenario and reviewed quota/holds (fixture allocation19/20). Begin with aws ec2 describe-instances --profile botkernel-dev --region us-east-2 --instance-ids i-0b30b3106988f698e; obtain runtime authorization before start. Use latest AWS_DEMO_READY.md plus PROJECT_HANDOFF.md exact image IDs and commands. Kubernetes remains unavailable; never show chart renders as runtime.
+
+## Final rehearsal access and boundaries - after 2026-11-14 acceptance
+
+The completed run is `final-20261114-01`, incident3, deterministic report ea95fd08-2d65-49bf-9ccc-0479321b17f6. Incident2's successful Bedrock report is ac1131cf-e990-4cdb-9d06-95dbea1eee2f. These are actual persisted results, not proposed recording IDs. EC2 and services are STOPPED now. A new owner-approved runtime window is required for future access; do not rerun inference merely to display provenance.
+
+### Start existing services only after runtime approval
+
+Windows PowerShell (no provisioning):
+
+```powershell
+$Instance = 'i-0b30b3106988f698e'
+# AFTER a new approved window; record actual start/deadline and verify expected identity first.
+aws ec2 start-instances --instance-ids $Instance --profile botkernel-dev --region us-east-2
+aws ec2 wait instance-status-ok --instance-ids $Instance --profile botkernel-dev --region us-east-2
+aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$Instance" --profile botkernel-dev --region us-east-2
+```
+
+On EC2 via approved SSM Run Command/terminal, using existing configuration/images/volumes (no build or push needed):
+
+```bash
+cd /opt/botkernel
+# Verify runtime.env has inference/spend/action flags=false without printing the whole file.
+docker compose --env-file runtime.env -f compose.aws-demo.yaml config --quiet
+docker compose --env-file runtime.env -f compose.aws-demo.yaml up -d postgres redis kafka-volume-init kafka init api publisher worker recovery controller dashboard
+curl -fsS http://127.0.0.1:8080/api/ready
+free -m
+# ONLY with measured headroom; retain the protected metrics file and approved override.
+docker compose --env-file runtime.env -f compose.aws-demo.yaml -f compose.metrics-access.yaml --profile observability up -d --no-deps jaeger otel-collector prometheus grafana
+docker compose --env-file runtime.env -f compose.aws-demo.yaml -f compose.metrics-access.yaml --profile observability ps -a
+```
+
+Do not use an unrestricted whole-stack up command to launch agents unintentionally. Bounded independent agents already passed; current latest Fleet entries may show their deterministic NO_OP results. The sequential Bedrock acceptance used separate role checkpoints, not concurrent Bedrock containers. Do not enable Bedrock for recording by default.
+
+### Private browser forwards
+
+Open four PowerShell terminals. Set the plugin PATH for each, check the chosen local port is free, and keep that terminal open. Example dashboard forward:
+
+```powershell
+$env:PATH = 'C:\Program Files\Amazon\SessionManagerPlugin\bin;' + $env:PATH
+Get-NetTCPConnection -State Listen -LocalPort 18090 -ErrorAction SilentlyContinue
+# If occupied, inspect ownership; do not stop an unrelated listener.
+'{"portNumber":["8080"],"localPortNumber":["18090"]}' | Set-Content -Encoding ascii "$env:TEMP\botkernel-dashboard-forward.json"
+aws ssm start-session --target i-0b30b3106988f698e --profile botkernel-dev --region us-east-2 --document-name AWS-StartPortForwardingSession --parameters "file://$env:TEMP\botkernel-dashboard-forward.json"
+```
+
+Repeat with separate parameter filenames and port pairs13000->13000(Grafana),19090->19090(Prometheus),16686->16686(Jaeger). All four mappings were actually verified in this run. No public port or security-group change.
+
+| Tab | Verified private route | What to show |
+|---|---|---|
+| Landing | http://127.0.0.1:18090/ | Public product, illustrative animation labeled |
+| Mission Control | http://127.0.0.1:18090/app | AWS deployment label;24durable effects/actions at saved end state |
+| Fleet | http://127.0.0.1:18090/app/agents | langgraph-cost/performance; latest real provider/no-op decision; no invented heartbeat success |
+| Graph | http://127.0.0.1:18090/app/graph?resource=aws-accept-cost-ade1070aa59e | Last hour; Highlight incident3; click action node for version/capacity evidence |
+| Investigations | http://127.0.0.1:18090/app/incidents | Select3 for deterministic lifecycle/report; select2 for real Bedrock report/model2113/189usage |
+| Experiments | http://127.0.0.1:18090/app/experiments | Existing2saved AWS experiment entries; simulation comparison, not Kafka throughput |
+| Grafana | http://127.0.0.1:13000/d/botkernel-execution | System/Execution/Collective dashboards, last30m,5srefresh |
+| Prometheus | http://127.0.0.1:19090/targets | All5targetsUP; query botkernel_committed_effects |
+| Jaeger | http://127.0.0.1:16686/trace/d8d4205ac0b7fd36fc8a247fab913e48 | Verified14-span trace for74ebe96f-cbe1-4f38-855e-d2586a72d422; ephemeral, see warning below |
+
+Sign in BEFORE recording using the owner-restricted credential file; never display or paste it into a visible terminal. Navigate within the console: full-page reload intentionally clears the in-memory token and requires sign-in again. Do not click Analyze Incident expecting Bedrock: that UI action deliberately requests deterministic analysis. Select the saved Bedrock report instead.
+
+**Freshness:** the graph only displays the last hour; this run's effects are06:53-06:55UTC November14. Later empty graph results are truthful. Reports/ledger remain durable. Jaeger memory and Prometheus tmpfs history are ephemeral; snapshots are archived, but the old trace URL may be unavailable after restart. Do not backdate effects or present archived samples as new telemetry. Actual original trace JSON is retained locally in infra/deploy/final-demo-trace.json and on EC2 under backups/final-acceptance-20261114/trace-d8d4205a.json.
+
+**No automatic scenario replay:** current allocation20/20 and target capacity5 mean the driver's peak+2 no longer fits. Incident3 has already consumed2interventions. Any new recording dataset needs explicit scope/owner review of quota, pending work, current versions and incident lifecycle, including a legitimate reviewed resolution where appropriate. Do not automatically downscale, resolve incident2/3, create new resources or replay old keys. The already-approved one preparation action and one8-action run have been consumed successfully. Inspect actual completed evidence safely with `cat /opt/botkernel/backups/final-acceptance-20261114/final-demo.json`.
+
+### Ordered silent walkthrough
+
+1. Establish approved runtime and tunnels; sign in privately; verify AWS hosting/readiness.
+2. Open Mission Control and Fleet; distinguish independent deterministic no-ops from retained Bedrock acceptance decisions.
+3. Inspect fresh graph only if within its real window; use node selection, incident3 highlight and observed versus inferred edges.
+4. Select incident3: show9committed facts including preparation,7reversals, sustained verification/recurrence, deterministic report.
+5. Select incident2 and COMPLETE/ac1131cf report: show real Nova profile, request/usage, advisory explanation. Never claim its empty hypotheses list contains new model findings.
+6. Show Experiment Lab saved results and simulation caveats.
+7. Show Grafana durable-effect gauge24 and execution timeline; Prometheus5UPtargets.
+8. Show the actual available Jaeger trace or clearly labeled archived JSON; CloudWatch filter action74ebe96f-cbe1-4f38-855e-d2586a72d422 and matching traceID. Fresh read-only requests may have new traces, but those do not prove a new worker effect.
+9. Show SSM Docker ps and verified image digests without runtime.env, account-bearing registry terminal output or tokens. AWS Console EC2/CloudWatch/ECR/Bedrock are optional authenticated navigation tabs; hide account identifiers.
+10. Show Kubernetes separately ONLY after actual cluster/pod acceptance. It is not part of the EC2 Compose proof.
+11. Save any new evidence, disable inference, stop only approved services, stop EC2, verify stopped, close only owned tunnels.
+
+Safe stop (EC2 shell first):
+
+```bash
+cd /opt/botkernel
+docker compose --env-file runtime.env -f compose.aws-demo.yaml -f compose.metrics-access.yaml --profile observability stop
+```
+
+```powershell
+aws ec2 stop-instances --instance-ids i-0b30b3106988f698e --profile botkernel-dev --region us-east-2
+aws ec2 wait instance-stopped --instance-ids i-0b30b3106988f698e --profile botkernel-dev --region us-east-2
+aws ec2 describe-instances --instance-ids i-0b30b3106988f698e --profile botkernel-dev --region us-east-2 --query 'Reservations[0].Instances[0].State.Name' --output text
+```
+
+Do not down-v, prune, destroy infrastructure or delete PVCs/volumes. Retained EBS/ECR/log charges continue after compute stops. Exact commands above are a later approved operating procedure, not permission to start another window automatically.
