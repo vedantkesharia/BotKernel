@@ -21,6 +21,9 @@ from botkernel.security import operator_headers
 
 MODEL_ID = "us.amazon.nova-micro-v1:0"
 REGION = "us-east-2"
+DAILY_CALL_LIMIT = 12
+DAILY_TOKEN_LIMIT = 80_000
+OUTPUT_TOKEN_LIMIT = 1024
 
 
 class AcceptanceError(RuntimeError):
@@ -50,10 +53,10 @@ def validate_live_configuration(api_url: str | None = None) -> None:
         "INVESTIGATOR_PROVIDER": "bedrock",
         "BEDROCK_MODEL_ID": MODEL_ID,
         "BEDROCK_REGION": REGION,
-        "BEDROCK_MAX_OUTPUT_TOKENS": "512",
+        "BEDROCK_MAX_OUTPUT_TOKENS": str(OUTPUT_TOKEN_LIMIT),
         "BEDROCK_MAX_CALLS_PER_RUN": "1",
-        "BEDROCK_MAX_CALLS_PER_DAY": "3",
-        "MAX_BEDROCK_TOKENS_PER_DAY": "20000",
+        "BEDROCK_MAX_CALLS_PER_DAY": str(DAILY_CALL_LIMIT),
+        "MAX_BEDROCK_TOKENS_PER_DAY": str(DAILY_TOKEN_LIMIT),
     }
     if any(os.getenv(name, "").strip() != value for name, value in required.items()):
         raise AcceptanceError("acceptance_configuration_mismatch")
@@ -110,7 +113,9 @@ def validate_remaining_budget() -> None:
             raise ValueError("negative budget counter")
     except (redis.RedisError, ValueError, TypeError, KeyError) as error:
         raise AcceptanceError("budget_counter_unavailable") from error
-    if calls + 3 > 3 or tokens + 3 * 512 > 20000:
+    # Read-only early check; the provider atomically reserves the full serialized
+    # input estimate plus output limit for EACH invocation in this same store.
+    if calls + 3 > DAILY_CALL_LIMIT or tokens + 3 * OUTPUT_TOKEN_LIMIT > DAILY_TOKEN_LIMIT:
         raise AcceptanceError("acceptance_daily_budget_insufficient")
 
 

@@ -162,11 +162,11 @@ class BedrockSettings:
         if not re.fullmatch(r"[a-z]{2}(?:-gov)?-[a-z]+-\d", region):
             raise BedrockProviderError("invalid_region_configuration")
         try:
-            tokens = int(os.getenv("BEDROCK_MAX_OUTPUT_TOKENS", "512"))
+            tokens = int(os.getenv("BEDROCK_MAX_OUTPUT_TOKENS", "1024"))
             calls = int(os.getenv("BEDROCK_MAX_CALLS_PER_RUN", "1"))
             timeout = float(os.getenv("BEDROCK_REQUEST_TIMEOUT_SECONDS", "10"))
-            daily_calls = int(os.getenv("BEDROCK_MAX_CALLS_PER_DAY",os.getenv("MAX_BEDROCK_REQUESTS_PER_DAY","10")))
-            daily_tokens = int(os.getenv("MAX_BEDROCK_TOKENS_PER_DAY","20000"))
+            daily_calls = int(os.getenv("BEDROCK_MAX_CALLS_PER_DAY",os.getenv("MAX_BEDROCK_REQUESTS_PER_DAY","12")))
+            daily_tokens = int(os.getenv("MAX_BEDROCK_TOKENS_PER_DAY","80000"))
         except ValueError as error:
             raise BedrockProviderError("invalid_inference_limits") from error
         if not 32 <= tokens <= 2048 or not 1 <= calls <= 4 or not 1 <= timeout <= 30 or not 1 <= daily_calls <= 1000 or not 1 <= daily_tokens <= 2_000_000:

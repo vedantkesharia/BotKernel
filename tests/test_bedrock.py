@@ -158,6 +158,43 @@ def test_provider_settings_default_closed_and_reject_invalid_limits(monkeypatch)
         BedrockSettings.from_env()
 
 
+def test_revised_budget_defaults_still_require_explicit_spend_authorization(monkeypatch):
+    for name in ("BEDROCK_MAX_OUTPUT_TOKENS", "BEDROCK_MAX_CALLS_PER_DAY",
+                 "MAX_BEDROCK_REQUESTS_PER_DAY", "MAX_BEDROCK_TOKENS_PER_DAY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("BEDROCK_ENABLED", "true")
+    monkeypatch.setenv("BEDROCK_SPEND_AUTHORIZED", "true")
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "us.amazon.nova-micro-v1:0")
+    monkeypatch.setenv("BEDROCK_REGION", "us-east-2")
+    settings = BedrockSettings.from_env()
+    assert (settings.max_calls_per_day, settings.max_tokens_per_day,
+            settings.max_output_tokens) == (12, 80_000, 1024)
+    assert settings.max_calls_per_run == 1
+    monkeypatch.setenv("BEDROCK_SPEND_AUTHORIZED", "false")
+    with pytest.raises(BedrockProviderError, match="spend_not_authorized"):
+        BedrockSettings.from_env()
+
+
+def test_revised_limits_use_original_daily_atomic_reservation_without_reset(monkeypatch):
+    import redis
+    from datetime import datetime, timezone
+    seen = []
+
+    class Counter:
+        def eval(self, script, key_count, key, *args):
+            seen.append((key_count, key, args))
+            assert "HINCRBY" in script
+            assert "DEL" not in script and "FLUSH" not in script
+            return 1
+
+    monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
+    sdk = BedrockConverse(_settings(max_calls_per_day=12, max_tokens_per_day=80_000,
+                                    max_output_tokens=1024))
+    sdk._reserve_daily_budget("new-controlled-attempt", 3500)
+    assert seen == [(1, "botkernel:bedrock-budget:" + datetime.now(timezone.utc).strftime("%Y%m%d"),
+                     (12, 3500, 80_000, "new-controlled-attempt"))]
+
+
 def test_bedrock_requires_separate_spend_authorization_and_reserves_daily_budget(monkeypatch):
     monkeypatch.setenv("BEDROCK_ENABLED","true")
     monkeypatch.setenv("BEDROCK_SPEND_AUTHORIZED","false")
@@ -354,7 +391,8 @@ def _stub_response(body):
 
 
 @pytest.mark.parametrize(("role", "delta"), [("cost", -1), ("performance", 1)])
-def test_real_sdk_stub_validates_each_agent_and_nova_profile(role, delta):
+@pytest.mark.parametrize("output_limit", [512, 1024])
+def test_real_sdk_stub_validates_each_agent_and_nova_profile(role, delta, output_limit):
     from botocore.stub import ANY
     from botocore.validate import validate_parameters
     client, stubber = _stubbed_runtime()
@@ -363,14 +401,14 @@ def test_real_sdk_stub_validates_each_agent_and_nova_profile(role, delta):
             "reason": "Based on the observed simulator resource.",
             "evidence_references": ["resource:service-a"], "uncertainties": []}
     expected = {"modelId": model, "system": ANY, "messages": ANY,
-                "inferenceConfig": {"maxTokens": 512, "temperature": 0.1}}
+                "inferenceConfig": {"maxTokens": output_limit, "temperature": 0.1}}
     stubber.add_response("converse", _stub_response(body), expected)
     observed = {}
     client.meta.events.register(
         "before-parameter-build.bedrock-runtime.Converse",
         lambda params, **kwargs: observed.update(params),
     )
-    sdk = _sdk(client, _settings(model_id=model, region="us-east-2", max_output_tokens=512))
+    sdk = _sdk(client, _settings(model_id=model, region="us-east-2", max_output_tokens=output_limit))
     with stubber:
         decision, usage = BedrockAgentReasoner(sdk).decide(
             role, {"id": "service-a", "capacity": 5, "recent_effects": []}, "offline"
@@ -401,13 +439,48 @@ def test_real_sdk_stub_validates_investigator_citations_and_usage(monkeypatch):
         "inferenceConfig": {"maxTokens": 512, "temperature": 0.1},
     })
     sdk = _sdk(client, _settings(model_id=model, region="us-east-2", max_output_tokens=512))
+    observed = {}
+    client.meta.events.register(
+        "before-parameter-build.bedrock-runtime.Converse",
+        lambda params, **kwargs: observed.update(params),
+    )
     monkeypatch.setattr(module, "BedrockConverse", lambda: sdk)
     with stubber:
         report = ai_assist({**_investigation_state(), "provider": "bedrock", "run_id": "offline"})["report"]
     assert report["ai_analysis"]["supporting_references"] == [action]
     assert report["findings"][-1]["classification"] == "HYPOTHESIS"
     assert report["usage"]["input_tokens"] == 123 and report["usage"]["output_tokens"] == 45
+    prompt = observed["system"][0]["text"]
+    assert "eight required root fields" in prompt
+    assert "Do not wrap" in prompt and "untrusted data" in prompt
+    for field in InvestigationAnalysis.model_fields:
+        assert field in prompt
     stubber.assert_no_pending_responses()
+
+
+@pytest.mark.parametrize("wrapper", ["response_schema", "analysis", "report"])
+def test_investigator_wrapped_response_is_rejected_without_retry(monkeypatch, wrapper):
+    import botkernel.bedrock as module
+    from botkernel.investigator import ai_assist
+    client = FakeConverseClient(_response({wrapper: {
+        "explanation": "Evidence observed.", "hypotheses": [],
+        "cross_agent_analysis": "", "instability_mechanism": "",
+        "supporting_references": ["incident:1"],
+        "contradictory_or_missing_evidence": [], "preventive_actions": [],
+        "confidence_caveats": [],
+    }}))
+    sdk = _sdk(client)
+    monkeypatch.setattr(module, "BedrockConverse", lambda: sdk)
+    state = {**_investigation_state(), "provider": "bedrock", "run_id": "wrapped"}
+    with pytest.raises(BedrockProviderError) as caught:
+        ai_assist(state)
+    assert caught.value.category == "invalid_model_response"
+    missing = {item["path"][0] for item in caught.value.diagnostics["validation_errors"]
+               if item["category"] == "missing"}
+    assert missing == set(InvestigationAnalysis.model_fields)
+    with pytest.raises(BedrockProviderError, match="call_limit_exceeded"):
+        ai_assist(state)
+    assert len(client.calls) == 1
 
 
 def test_malformed_converse_response_has_safe_response_diagnostics():

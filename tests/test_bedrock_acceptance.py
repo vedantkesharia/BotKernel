@@ -23,10 +23,10 @@ def _approved_environment(monkeypatch, checkpoint_path):
         "INVESTIGATOR_PROVIDER": "bedrock",
         "BEDROCK_MODEL_ID": "us.amazon.nova-micro-v1:0",
         "BEDROCK_REGION": "us-east-2",
-        "BEDROCK_MAX_OUTPUT_TOKENS": "512",
+        "BEDROCK_MAX_OUTPUT_TOKENS": "1024",
         "BEDROCK_MAX_CALLS_PER_RUN": "1",
-        "BEDROCK_MAX_CALLS_PER_DAY": "3",
-        "MAX_BEDROCK_TOKENS_PER_DAY": "20000",
+        "BEDROCK_MAX_CALLS_PER_DAY": "12",
+        "MAX_BEDROCK_TOKENS_PER_DAY": "80000",
         "DATABASE_URL": "postgresql+psycopg://user:pass@127.0.0.1:15432/test",
         "REDIS_URL": "redis://127.0.0.1:16379",
         "BOTKERNEL_AGENT_CHECKPOINTS": str(checkpoint_path),
@@ -113,8 +113,10 @@ def test_aws_acceptance_rejects_unexpected_api(tmp_path, monkeypatch, endpoint):
     [
         ((None, None), None),
         ((b"0", b"1812"), None),
-        ((b"1", b"1812"), "acceptance_daily_budget_insufficient"),
-        ((b"0", b"19000"), "acceptance_daily_budget_insufficient"),
+        ((b"1", b"1812"), None),
+        ((b"9", b"76928"), None),
+        ((b"10", b"1812"), "acceptance_daily_budget_insufficient"),
+        ((b"0", b"76929"), "acceptance_daily_budget_insufficient"),
         ((b"1", None), "budget_counter_unavailable"),
         ((b"invalid", b"0"), "budget_counter_unavailable"),
         ((b"-1", b"0"), "budget_counter_unavailable"),
@@ -147,7 +149,7 @@ def test_insufficient_shared_budget_stops_before_any_workflow(tmp_path, monkeypa
 
     class Counter:
         def hmget(self, key, *fields):
-            return (b"1", b"1812")
+            return (b"10", b"1812")
 
     _approved_environment(monkeypatch, tmp_path / "new-checkpoint.sqlite")
     monkeypatch.setattr(redis.Redis, "from_url", lambda *args, **kwargs: Counter())
@@ -368,10 +370,10 @@ def test_acceptance_exercises_both_graphs_and_persisted_investigation_without_ac
         "INVESTIGATOR_PROVIDER": "bedrock",
         "BEDROCK_MODEL_ID": acceptance.MODEL_ID,
         "BEDROCK_REGION": acceptance.REGION,
-        "BEDROCK_MAX_OUTPUT_TOKENS": "512",
+        "BEDROCK_MAX_OUTPUT_TOKENS": "1024",
         "BEDROCK_MAX_CALLS_PER_RUN": "1",
-        "BEDROCK_MAX_CALLS_PER_DAY": "3",
-        "MAX_BEDROCK_TOKENS_PER_DAY": "20000",
+        "BEDROCK_MAX_CALLS_PER_DAY": "12",
+        "MAX_BEDROCK_TOKENS_PER_DAY": "80000",
         "BOTKERNEL_AGENT_CHECKPOINTS": str(tmp_path/"agent-checkpoints.sqlite"),
         "BOTKERNEL_RUNTIME_ENV": "local",
     }.items():
