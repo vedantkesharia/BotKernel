@@ -25,7 +25,11 @@ test("public product landing stays independent of the operator API at all review
       ).map(other => `${node.name}/${other.name}`));
       const outside = nodes.filter(node => node.left < bounds.left || node.right > bounds.right || node.top < bounds.top || node.bottom > bounds.bottom);
       const wires = [...canvas.querySelectorAll<SVGPathElement>(".demo-wire")];
-      const endpoints: Record<string, [string, string]> = {
+      const endpoints = Object.fromEntries(wires.map(wire => [
+        wire.dataset.edge ?? "",
+        [wire.dataset.source ?? "", wire.dataset.target ?? ""],
+      ]));
+      const expectedEdges: Record<string, [string, string]> = {
         "resource-cost": ["resource", "cost"],
         "resource-performance": ["resource", "performance"],
         "cost-admission": ["cost", "gateway"],
@@ -38,14 +42,125 @@ test("public product landing stays independent of the operator API at all review
         "effect-controller": ["effect", "controller"],
         "controller-investigator": ["controller", "investigator"],
       };
-      const connectorIntersections = wires.flatMap(wire => {
-        const [source, target] = endpoints[wire.dataset.edge ?? ""] ?? [];
-        if (!source || !target) return [`${wire.dataset.edge}/unknown-endpoints`];
+      const edgeGraphErrors = Object.entries(expectedEdges).flatMap(([edge, expected]) =>
+        JSON.stringify(endpoints[edge]) === JSON.stringify(expected) ? [] : [edge],
+      );
+      type AnchorSide = "left" | "right" | "top" | "bottom";
+      const compact = bounds.width < 520;
+      const edgeAnchors: Record<string, [AnchorSide, AnchorSide]> = {
+        "cost-admission": compact ? ["bottom", "top"] : ["right", "left"],
+        "performance-admission": compact ? ["bottom", "top"] : ["right", "left"],
+        "admission-postgres": ["right", "left"],
+        "postgres-publisher": compact ? ["bottom", "top"] : ["right", "left"],
+        "publisher-worker": compact ? ["right", "left"] : ["bottom", "top"],
+        "worker-effect": compact ? ["bottom", "top"] : ["left", "right"],
+        "effect-controller": compact ? ["left", "right"] : ["bottom", "top"],
+        "controller-investigator": compact ? ["bottom", "top"] : ["left", "right"],
+        "effect-resource": ["bottom", "top"],
+      };
+      const measureAnchor = (point: DOMPoint, nodeName: string, side: AnchorSide, expectedGap = 0) => {
+        const node = nodes.find(item => item.name === nodeName);
+        if (!node) return null;
+        const left = node.left - bounds.left;
+        const right = node.right - bounds.left;
+        const top = node.top - bounds.top;
+        const bottom = node.bottom - bounds.top;
+        if (side === "left") return { gap: left - point.x - expectedGap, aligned: point.y >= top - 1 && point.y <= bottom + 1 };
+        if (side === "right") return { gap: point.x - right - expectedGap, aligned: point.y >= top - 1 && point.y <= bottom + 1 };
+        if (side === "top") return { gap: top - point.y - expectedGap, aligned: point.x >= left - 1 && point.x <= right + 1 };
+        return { gap: point.y - bottom - expectedGap, aligned: point.x >= left - 1 && point.x <= right + 1 };
+      };
+      const anchorMeasurements = wires.map(wire => {
+        const edge = wire.dataset.edge ?? "";
+        const [sourceName, targetName] = endpoints[edge] ?? ["", ""];
         const length = wire.getTotalLength();
-        return Array.from({ length: 19 }, (_, index) => {
-          const point = wire.getPointAtLength(length * (index + 1) / 20);
+        const start = wire.getPointAtLength(0);
+        const end = wire.getPointAtLength(length);
+        const before = wire.getPointAtLength(Math.max(0, length - Math.min(2, length / 2)));
+        const isBranch = edge === "resource-cost" || edge === "resource-performance";
+        const isTrunk = edge === "resource-branch-trunk";
+        const [fromSide, toSide] = edgeAnchors[edge] ?? ["right", "left"];
+        const source = isBranch ? null : measureAnchor(start, sourceName, isTrunk ? (compact ? "bottom" : "right") : fromSide);
+        const targetSide = isBranch ? (compact ? "top" : "left") : toSide;
+        const head = canvas.querySelector<SVGPolygonElement>(`.demo-arrowhead[data-arrow-for="${edge}"]`);
+        const tip = head?.points.getItem(0);
+        const target = isTrunk || !tip ? null : measureAnchor(new DOMPoint(tip.x, tip.y), targetName, targetSide, 2.5);
+        const dx = end.x - before.x;
+        const dy = end.y - before.y;
+        const direction = targetSide === "left" ? dx
+          : targetSide === "right" ? -dx
+            : targetSide === "top" ? dy
+              : -dy;
+        return { edge, source, target, direction };
+      });
+      const anchorErrors = anchorMeasurements.flatMap(measurement =>
+        [measurement.source, measurement.target].some(anchor => anchor && (!anchor.aligned || Math.abs(anchor.gap) > 0.75))
+          ? [measurement.edge]
+          : [],
+      );
+      const arrowDirectionErrors = anchorMeasurements.filter(measurement =>
+        measurement.edge !== "resource-branch-trunk" && measurement.direction <= 0.1,
+      ).map(measurement => measurement.edge);
+      const arrowheads = [...canvas.querySelectorAll<SVGPolygonElement>(".demo-arrowhead")];
+      const missingArrows = wires.filter(wire =>
+        wire.dataset.edge !== "resource-branch-trunk" && !arrowheads.some(head => head.dataset.arrowFor === wire.dataset.edge),
+      ).map(wire => wire.dataset.edge);
+      const trunkHasArrow = arrowheads.some(head => head.dataset.arrowFor === "resource-branch-trunk");
+      const arrowheadErrors = wires.filter(wire => wire.dataset.edge !== "resource-branch-trunk").flatMap(wire => {
+        const head = arrowheads.find(item => item.dataset.arrowFor === wire.dataset.edge);
+        if (!head || head.points.numberOfItems !== 3) return [wire.dataset.edge ?? "unknown-edge"];
+        const tip = head.points.getItem(0);
+        const firstBase = head.points.getItem(1);
+        const secondBase = head.points.getItem(2);
+        const length = wire.getTotalLength();
+        const pathTip = wire.getPointAtLength(length);
+        const pathBeforeTip = wire.getPointAtLength(Math.max(0, length - 0.05));
+        const baseCenter = {
+          x: (firstBase.x + secondBase.x) / 2,
+          y: (firstBase.y + secondBase.y) / 2,
+        };
+        const pathVector = { x: pathTip.x - pathBeforeTip.x, y: pathTip.y - pathBeforeTip.y };
+        const headVector = { x: tip.x - baseCenter.x, y: tip.y - baseCenter.y };
+        const alignment = (pathVector.x * headVector.x + pathVector.y * headVector.y) /
+          (Math.hypot(pathVector.x, pathVector.y) * Math.hypot(headVector.x, headVector.y));
+        const headLength = Math.hypot(headVector.x, headVector.y);
+        const headWidth = Math.hypot(firstBase.x - secondBase.x, firstBase.y - secondBase.y);
+        return Math.hypot(pathTip.x - baseCenter.x, pathTip.y - baseCenter.y) <= 0.05 &&
+          alignment >= 0.995 &&
+          Math.abs(headLength - 8) <= 0.05 &&
+          Math.abs(headWidth - 6.5) <= 0.05
+          ? []
+          : [`${wire.dataset.edge ?? "unknown-edge"}:base=${Math.hypot(pathTip.x - baseCenter.x, pathTip.y - baseCenter.y).toFixed(3)},alignment=${alignment.toFixed(4)},length=${headLength.toFixed(3)},width=${headWidth.toFixed(3)}`];
+      });
+      const arrowheadIntersections = arrowheads.flatMap(head => {
+        const [tip, first, second] = [0, 1, 2].map(index => head.points.getItem(index));
+        const samples = Array.from({ length: 9 }, (_, step) =>
+          Array.from({ length: step + 1 }, (_, across) => {
+            const tipWeight = 1 - step / 8;
+            const firstWeight = (step - across) / 8;
+            const secondWeight = across / 8;
+            return {
+              x: tip.x * tipWeight + first.x * firstWeight + second.x * secondWeight,
+              y: tip.y * tipWeight + first.y * firstWeight + second.y * secondWeight,
+            };
+          }),
+        ).flat();
+        const blocker = nodes.find(node => {
+          if (node.name === head.dataset.source || node.name === head.dataset.target) return false;
+          const left = node.left - bounds.left;
+          const right = node.right - bounds.left;
+          const top = node.top - bounds.top;
+          const bottom = node.bottom - bounds.top;
+          return samples.some(point => point.x > left && point.x < right && point.y > top && point.y < bottom);
+        });
+        return blocker ? [`${head.dataset.arrowFor}/${blocker.name}`] : [];
+      });
+      const connectorIntersections = wires.flatMap(wire => {
+        const length = wire.getTotalLength();
+        const sampleCount = Math.max(20, Math.ceil(length / 3));
+        return Array.from({ length: sampleCount }, (_, index) => {
+          const point = wire.getPointAtLength(length * (index + 0.5) / sampleCount);
           const blocker = nodes.find(node => {
-            if (node.name === source || node.name === target) return false;
             const left = node.left - bounds.left;
             const right = node.right - bounds.left;
             const top = node.top - bounds.top;
@@ -55,21 +170,50 @@ test("public product landing stays independent of the operator API at all review
           return blocker ? `${wire.dataset.edge}/${blocker.name}` : "";
         }).filter(Boolean);
       });
+      const connectedBranchPairs = new Set([
+        ["resource-branch-trunk", "resource-cost"].sort().join("/"),
+        ["resource-branch-trunk", "resource-performance"].sort().join("/"),
+      ]);
+      const trunk = wires.find(wire => wire.dataset.edge === "resource-branch-trunk");
+      const branchConnectionErrors = wires.filter(wire =>
+        wire.dataset.edge === "resource-cost" || wire.dataset.edge === "resource-performance",
+      ).filter(wire => {
+        if (!trunk) return true;
+        const start = wire.getPointAtLength(0);
+        const length = trunk.getTotalLength();
+        const steps = Math.max(50, Math.ceil(length));
+        let nearest = Number.POSITIVE_INFINITY;
+        for (let index = 0; index <= steps; index += 1) {
+          const point = trunk.getPointAtLength(length * index / steps);
+          nearest = Math.min(nearest, Math.hypot(start.x - point.x, start.y - point.y));
+        }
+        return nearest > 0.75;
+      }).map(wire => wire.dataset.edge);
+      const samplesByWire = new Map(wires.map(wire => {
+        const length = wire.getTotalLength();
+        const count = Math.max(2, Math.ceil(length / 3));
+        return [wire, Array.from({ length: count + 1 }, (_, index) => wire.getPointAtLength(length * index / count))] as const;
+      }));
+      const routeCollisions = wires.flatMap((wire, index) => wires.slice(index + 1).flatMap(other => {
+        const pair = [wire.dataset.edge ?? "", other.dataset.edge ?? ""].sort().join("/");
+        if (connectedBranchPairs.has(pair)) return [];
+        const first = samplesByWire.get(wire) ?? [];
+        const second = samplesByWire.get(other) ?? [];
+        const collides = first.some(point => second.some(candidate => Math.hypot(point.x - candidate.x, point.y - candidate.y) < 1.5));
+        return collides ? [pair] : [];
+      }));
       const overflowingAgentTitles = [...canvas.querySelectorAll<HTMLElement>(".demo-agent b")]
         .filter(title => title.scrollWidth > title.clientWidth + 1)
         .map(title => title.textContent?.trim() ?? "");
-      const stabilityWire = wires.find(wire => wire.dataset.edge === "effect-controller");
-      const stabilityController = nodes.find(node => node.name === "controller");
-      const stabilityEndpoint = stabilityWire && stabilityController
-        ? stabilityWire.getPointAtLength(stabilityWire.getTotalLength())
-        : null;
-      const stabilityEndpointOffset = stabilityEndpoint && stabilityController
-        ? Math.min(
-          Math.abs(stabilityEndpoint.x - (stabilityController.left - bounds.left)),
-          Math.abs(stabilityEndpoint.x - (stabilityController.right - bounds.left)),
-          Math.abs(stabilityEndpoint.y - (stabilityController.top - bounds.top)),
-          Math.abs(stabilityEndpoint.y - (stabilityController.bottom - bounds.top)),
-        )
+      const feedback = wires.find(wire => wire.dataset.edge === "effect-resource");
+      const feedbackStyle = feedback ? getComputedStyle(feedback) : null;
+      const feedbackTail = canvas.querySelector<SVGPathElement>(".demo-wire-feedback-tail");
+      const feedbackTailJoinError = feedback && feedbackTail
+        ? (() => {
+          const end = feedback.getPointAtLength(feedback.getTotalLength());
+          const tailEnd = feedbackTail.getPointAtLength(feedbackTail.getTotalLength());
+          return Math.hypot(end.x - tailEnd.x, end.y - tailEnd.y);
+        })()
         : null;
       return {
         nodes,
@@ -77,11 +221,27 @@ test("public product landing stays independent of the operator API at all review
         overlaps,
         outside,
         wireCount: wires.length,
+        directedEdgeCount: arrowheads.length,
+        edgeGraphErrors,
         emptyWires: wires.filter(wire => !wire.getAttribute("d")?.trim()).map(wire => wire.dataset.edge),
         missingAgentAdmissionEdges: ["cost-admission", "performance-admission"].filter(id => !wires.some(wire => wire.dataset.edge === id)),
         connectorIntersections,
+        routeCollisions,
+        anchorErrors,
+        branchConnectionErrors,
+        arrowDirectionErrors,
+        arrowheadErrors,
+        arrowheadIntersections,
+        missingArrows,
+        trunkHasArrow,
+        markerCount: canvas.querySelectorAll("marker").length,
+        arrowheadCount: arrowheads.length,
+        feedbackTailJoinError,
+        feedbackTailDasharray: feedbackTail ? getComputedStyle(feedbackTail).strokeDasharray : null,
+        feedbackDashed: Boolean(feedbackStyle && feedbackStyle.strokeDasharray !== "none"),
+        feedbackStrokeWidth: feedbackStyle ? Number.parseFloat(feedbackStyle.strokeWidth) : null,
+        feedbackOpacity: feedbackStyle ? Number.parseFloat(feedbackStyle.opacity) : null,
         overflowingAgentTitles,
-        stabilityEndpointOffset,
         wiresHidden: getComputedStyle(canvas.querySelector(".demo-wires")!).display === "none",
       };
     });
@@ -89,13 +249,31 @@ test("public product landing stays independent of the operator API at all review
     expect(diagramLayout.oversizedNodes).toEqual([]);
     expect(diagramLayout.overlaps).toEqual([]);
     expect(diagramLayout.outside).toEqual([]);
-    expect(diagramLayout.wireCount).toBe(11);
+    expect(diagramLayout.wireCount).toBe(12);
+    expect(diagramLayout.directedEdgeCount).toBe(11);
+    expect(diagramLayout.edgeGraphErrors).toEqual([]);
     expect(diagramLayout.emptyWires).toEqual([]);
     expect(diagramLayout.missingAgentAdmissionEdges).toEqual([]);
     expect(diagramLayout.connectorIntersections).toEqual([]);
+    expect(diagramLayout.routeCollisions).toEqual([]);
+    expect(diagramLayout.anchorErrors).toEqual([]);
+    expect(diagramLayout.branchConnectionErrors).toEqual([]);
+    expect(diagramLayout.arrowDirectionErrors).toEqual([]);
+    expect(diagramLayout.arrowheadErrors).toEqual([]);
+    expect(diagramLayout.arrowheadIntersections).toEqual([]);
+    expect(diagramLayout.missingArrows).toEqual([]);
+    expect(diagramLayout.trunkHasArrow).toBe(false);
+    expect(diagramLayout.markerCount).toBe(0);
+    expect(diagramLayout.arrowheadCount).toBe(11);
+    expect(diagramLayout.feedbackTailJoinError).not.toBeNull();
+    expect(diagramLayout.feedbackTailJoinError!).toBeLessThan(0.01);
+    expect(diagramLayout.feedbackTailDasharray).toBe("none");
+    expect(diagramLayout.feedbackDashed).toBe(true);
+    expect(diagramLayout.feedbackStrokeWidth).not.toBeNull();
+    expect(diagramLayout.feedbackStrokeWidth!).toBeLessThan(2.4);
+    expect(diagramLayout.feedbackOpacity).not.toBeNull();
+    expect(diagramLayout.feedbackOpacity!).toBeLessThan(0.8);
     expect(diagramLayout.overflowingAgentTitles).toEqual([]);
-    expect(diagramLayout.stabilityEndpointOffset).not.toBeNull();
-    expect(diagramLayout.stabilityEndpointOffset).toBeLessThan(1);
     expect(diagramLayout.wiresHidden).toBe(false);
     const stepperOverflow = await page.locator(".demo-stepper").evaluate(stepper => stepper.scrollWidth > stepper.clientWidth + 1);
     expect(stepperOverflow).toBe(false);
@@ -127,12 +305,64 @@ test("public product landing stays independent of the operator API at all review
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `visual-review/landing-viewport-${name}.png` });
     await page.screenshot({ path: `visual-review/landing-${name}.png`, fullPage: true });
+    await page.locator(".orchestration-demo").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `visual-review/system-model-${name}.png` });
   }
 
   expect(apiRequests).toEqual([]);
   expect(pageErrors).toEqual([]);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  for (const [index, label] of ["Observe", "Propose", "Admit", "Deliver", "Commit", "Contain", "Investigate"].entries()) {
+    await page.getByRole("button", { name: `${index + 1}. ${label}` }).click();
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+    const inactiveEndpoints = await page.locator(".demo-wires").evaluate(svg => {
+      const activeNodes = new Set([...document.querySelectorAll<HTMLElement>(".demo-diagram [data-node].is-active")]
+        .map(node => node.dataset.node ?? ""));
+      return [...svg.querySelectorAll<SVGPathElement>(".demo-wire.is-active")]
+        .flatMap(edge => [edge.dataset.source ?? "", edge.dataset.target ?? ""])
+        .filter(node => node && !activeNodes.has(node));
+    });
+    expect(inactiveEndpoints, `all edge endpoints should be highlighted during ${label}`).toEqual([]);
+    const activeStyles = await page.locator(".demo-wire.is-active:not(.is-feedback)").evaluateAll(edges => edges.map(edge => {
+      const style = getComputedStyle(edge);
+      return { strokeDasharray: style.strokeDasharray, strokeWidth: style.strokeWidth };
+    }));
+    expect(activeStyles, `active edges should remain present during ${label}`).not.toHaveLength(0);
+    expect(activeStyles.map(style => style.strokeDasharray), `active paths should not break before arrowheads during ${label}`)
+      .toEqual(activeStyles.map(() => "none"));
+    expect(new Set(activeStyles.map(style => style.strokeWidth)).size, `active primary edges should share a stroke width during ${label}`)
+      .toBe(1);
+    const activeTargetErrors = await page.locator(".demo-canvas").evaluate(canvas => {
+      const canvasRect = canvas.getBoundingClientRect();
+      const nodes = new Map([...canvas.querySelectorAll<HTMLElement>(".demo-diagram [data-node]")].map(node => [
+        node.dataset.node ?? "",
+        node.getBoundingClientRect(),
+      ]));
+      const paths = [...canvas.querySelectorAll<SVGPathElement>(".demo-wire.is-active:not(.is-feedback)")]
+        .filter(edge => edge.dataset.edge !== "resource-branch-trunk");
+      return paths.flatMap(edge => {
+        const target = nodes.get(edge.dataset.target ?? "");
+        if (!target) return [edge.dataset.edge ?? "unknown-target"];
+        const point = edge.getPointAtLength(edge.getTotalLength());
+        const x = point.x + canvasRect.left;
+        const y = point.y + canvasRect.top;
+        const verticalAligned = y >= target.top - 0.75 && y <= target.bottom + 0.75;
+        const horizontalAligned = x >= target.left - 0.75 && x <= target.right + 0.75;
+        const expectedGap = 2.5;
+        const gaps = [
+          { distance: target.left - x, aligned: verticalAligned },
+          { distance: x - target.right, aligned: verticalAligned },
+          { distance: target.top - y, aligned: horizontalAligned },
+          { distance: y - target.bottom, aligned: horizontalAligned },
+        ];
+        return gaps.some(gap => gap.aligned && Math.abs(gap.distance - expectedGap) <= 0.75)
+          ? []
+          : [edge.dataset.edge ?? "unknown-edge"];
+      });
+    });
+    expect(activeTargetErrors, `active arrow tips should keep a 2.5px target gap during ${label}`).toEqual([]);
+  }
   await page.getByRole("button", { name: /7\. Investigate/ }).click();
   await expect(page.locator(".demo-story")).toContainText("Operators can inspect the evidence");
   await page.setViewportSize({ width: 1440, height: 900 });

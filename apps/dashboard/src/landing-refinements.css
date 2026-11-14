@@ -52,20 +52,13 @@
 
 .demo-wires {
   position: absolute;
-  z-index: 0;
+  z-index: 2;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
   pointer-events: none;
-}
-
-.demo-wires marker path {
-  fill: #c4cdc5;
-  stroke: #101210;
-  stroke-width: .8px;
-  stroke-linejoin: round;
 }
 
 .demo-wire {
@@ -86,16 +79,61 @@
 }
 
 .demo-wire.is-feedback {
-  stroke-dasharray: 4 5;
+  stroke: #707870;
+  stroke-width: 1.35px;
+  stroke-dasharray: 4 6;
+  opacity: .48;
 }
 
-.demo-wire.is-active:not(.is-feedback) {
-  stroke-dasharray: 3 8;
-  animation: demo-wire-flow 1.8s linear infinite;
+.demo-wire.is-feedback.is-active {
+  stroke: #9aa59b;
+  stroke-width: 1.55px;
+  opacity: .72;
 }
 
-@keyframes demo-wire-flow {
-  to { stroke-dashoffset: -22; }
+.demo-wire-feedback-tail {
+  fill: none;
+  stroke: #707870;
+  stroke-width: 1.35px;
+  stroke-linecap: round;
+  opacity: .48;
+  vector-effect: non-scaling-stroke;
+}
+
+.demo-wire-feedback-tail.is-active {
+  stroke: #9aa59b;
+  stroke-width: 1.55px;
+  opacity: .72;
+}
+
+.demo-arrowhead {
+  fill: #778078;
+  opacity: .76;
+  transition: fill .2s, opacity .2s;
+}
+
+.demo-arrowhead.is-active {
+  fill: #c1cbc2;
+  opacity: 1;
+}
+
+.demo-arrowhead.is-feedback {
+  fill: #707870;
+  opacity: .48;
+}
+
+.demo-arrowhead.is-feedback.is-active {
+  fill: #9aa59b;
+  opacity: .72;
+}
+
+.demo-wire.is-active:not(.is-feedback),
+.demo-arrowhead.is-active:not(.is-feedback) {
+  animation: demo-wire-highlight 1.8s ease-in-out infinite;
+}
+
+@keyframes demo-wire-highlight {
+  50% { opacity: .78; }
 }
 
 .demo-diagram {
@@ -207,7 +245,7 @@
 
 .demo-zone {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   color: #717873;
   font-size: 7px;
   font-weight: 700;
@@ -1051,7 +1089,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .demo-wire.is-active:not(.is-feedback) {
+  .demo-wire.is-active:not(.is-feedback),
+  .demo-arrowhead.is-active:not(.is-feedback) {
     animation: none;
   }
 }
