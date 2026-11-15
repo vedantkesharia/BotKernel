@@ -8,9 +8,9 @@ Cost and performance agents can each make reasonable decisions and still destabi
 
 ## System architecture
 
-![BotKernel System Architecture](docs/assets/botkernel-system-architecture.svg)
+![BotKernel System Architecture](docs/assets/botkernel-system-architecture.png)
 
-[View full-size diagram](docs/assets/botkernel-system-architecture.svg) | [Architecture details](docs/ARCHITECTURE.md)
+[View full-size diagram](docs/assets/botkernel-system-architecture.png) | [Architecture details](docs/ARCHITECTURE.md)
 
 ## What makes it different
 
