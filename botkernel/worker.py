@@ -2,6 +2,7 @@ import os
 import time
 import signal
 import logging
+import math
 
 running = True
 def stop(signum, frame):
@@ -26,7 +27,15 @@ from uuid import UUID
 from sqlalchemy.exc import NoResultFound
 
 broker = os.getenv("KAFKA_BOOTSTRAP_SERVERS","kafka:9092")
+def publisher_poll_interval():
+    value = float(os.getenv("OUTBOX_POLL_INTERVAL_SECONDS", "0.2"))
+    if not math.isfinite(value) or not 0.01 <= value <= 5:
+        raise ValueError("OUTBOX_POLL_INTERVAL_SECONDS must be finite and between 0.01 and 5")
+    return value
+
+
 def publish():
+    interval = publisher_poll_interval()
     p = Producer({"bootstrap.servers":broker,"enable.idempotence":True})
     while running:
         with traced_span("botkernel.outbox.poll") as poll_span:
@@ -79,10 +88,10 @@ def publish():
                         if os.getenv("CRASH_AFTER_PUBLISH") == "true":
                             os._exit(18)
                         c.execute(text("UPDATE outbox SET published=true WHERE id=:id"), {"id":row["id"]})
-        time.sleep(.2)
+        time.sleep(interval)
 
 def consume():
-    c = Consumer({"bootstrap.servers":broker,"group.id":"executors","auto.offset.reset":"earliest","enable.auto.commit":False,"session.timeout.ms":6000,"heartbeat.interval.ms":2000})
+    c = Consumer({"bootstrap.servers":broker,"group.id":os.getenv("KAFKA_CONSUMER_GROUP", "executors"),"auto.offset.reset":"earliest","enable.auto.commit":False,"session.timeout.ms":6000,"heartbeat.interval.ms":2000})
     c.subscribe([os.getenv("KAFKA_TOPIC","actions")])
     try:
         while running:

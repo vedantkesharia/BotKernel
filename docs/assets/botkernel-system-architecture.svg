@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1660" viewBox="0 0 1800 1660" role="img" aria-labelledby="title desc">
+  <title id="title">BotKernel — durable execution and collective stability</title>
+  <desc id="desc">Local-first architecture. Independent Cost and Performance LangGraph agents keep separate SQLite checkpoints and call optional advisory Bedrock reasoning directly. Authenticated FastAPI admission atomically reserves resources and writes actions and outbox records in PostgreSQL. A separate publisher sends to single-node Kafka with at-least-once delivery. The worker commits an idempotent simulator receipt, then finalizes effects and resource versions in the same PostgreSQL database. Recovery reconciles the ledger, receipts and uncertain effects. A deterministic controller applies resource holds and verifies recovery; an investigator reads evidence and persists validated reports. Redis supplies advisory state and fail-closed inference budgets. Private HTTP access uses Nginx over an SSM tunnel. AWS was verified in a bounded run on November 14, 2026 and is now stopped; local Kubernetes runtime acceptance is pending.</desc>
+  <defs>
+    <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="0.8" fill="#d8d3e4"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="#55505f" stroke-width="1.6" stroke-linejoin="round"/></marker>
+    <marker id="violet-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="#7854b5" stroke-width="1.6" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #282430; }
+      .title { font-size: 46px; font-weight: 700; letter-spacing: -1.5px; }
+      .subtitle { font-size: 21px; fill: #625b6d; }
+      .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 2px; fill: #7854b5; }
+      .heading { font-size: 22px; font-weight: 650; }
+      .node-title { font-size: 21px; font-weight: 650; }
+      .body { font-size: 17px; fill: #534c5e; }
+      .small { font-size: 15px; fill: #625b6d; }
+      .label { font-size: 14px; font-weight: 600; fill: #625b6d; }
+      .mono { font-family: Consolas, 'Courier New', monospace; font-size: 15px; fill: #625b6d; }
+      .panel { fill: #fff; stroke: #dcd6e5; stroke-width: 1.4; }
+      .soft { fill: #f7f4fb; stroke: #dcd2ec; stroke-width: 1.2; }
+      .line { fill: none; stroke: #55505f; stroke-width: 1.7; stroke-linejoin: round; marker-end: url(#arrow); }
+      .advisory { fill: none; stroke: #7854b5; stroke-width: 1.6; stroke-dasharray: 5 5; stroke-linejoin: round; marker-end: url(#violet-arrow); }
+      .both { marker-start: url(#arrow); }
+      .violet { fill: #7854b5; }
+      .rule { stroke: #e8e2ef; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect width="1800" height="1660" fill="#fcfbf8"/>
+  <rect width="1800" height="1660" fill="url(#dots)" opacity="0.48"/>
+
+  <!-- Original vector mark; all artwork and typography are native SVG. -->
+  <g transform="translate(56 49)" fill="none" stroke="#7854b5" stroke-width="3" stroke-linejoin="round">
+    <path d="M0 18 25 4 50 18 25 32Z"/><path d="m0 31 25 14 25-14M0 44l25 14 25-14"/>
+  </g>
+  <text x="126" y="91" class="title">BotKernel</text>
+  <text x="410" y="69" class="eyebrow">SYSTEM ARCHITECTURE</text>
+  <text x="410" y="101" class="subtitle">Distributed AgentOps · Durable execution · Collective stability</text>
+  <rect x="1370" y="47" width="374" height="61" rx="14" class="soft"/>
+  <circle cx="1393" cy="77" r="5" class="violet"/>
+  <text x="1410" y="72" class="label">AWS bounded run · 2026-11-14</text>
+  <text x="1410" y="94" class="small">Verified then · EC2 now STOPPED</text>
+
+  <text x="56" y="147" class="eyebrow">01 / EXPERIENCE &amp; INDEPENDENT REASONING</text>
+  <rect x="56" y="168" width="425" height="292" rx="18" class="panel"/>
+  <text x="80" y="203" class="heading">Operator console</text>
+  <text x="80" y="233" class="body">React · TypeScript · Vite</text>
+  <line x1="80" y1="251" x2="457" y2="251" class="rule"/>
+  <text x="80" y="278" class="body">Mission control · Agent fleet · Effect graph</text>
+  <text x="80" y="305" class="body">Investigations · Experiment lab</text>
+  <rect x="80" y="326" width="377" height="111" rx="10" class="soft"/>
+  <text x="96" y="354" class="label">PRIVATE AWS ACCESS</text>
+  <text x="96" y="381" class="body">Browser → SSM tunnel → loopback HTTP</text>
+  <text x="96" y="408" class="body">Nginx: static assets + /api reverse proxy</text>
+  <text x="96" y="428" class="small">Operator bearer authentication at FastAPI</text>
+
+  <rect x="505" y="168" width="730" height="292" rx="18" class="panel"/>
+  <text x="529" y="203" class="heading">Independent LangGraph agent processes</text>
+  <text x="529" y="232" class="small">Observe API telemetry → reason → validate → gated submission</text>
+  <rect x="529" y="252" width="310" height="122" rx="11" class="soft"/>
+  <rect x="861" y="252" width="350" height="122" rx="11" class="soft"/>
+  <text x="547" y="282" class="node-title">Cost role</text>
+  <text x="879" y="282" class="node-title">Performance role</text>
+  <line x1="547" y1="298" x2="821" y2="298" class="rule"/>
+  <line x1="879" y1="298" x2="1193" y2="298" class="rule"/>
+  <text x="547" y="326" class="body">SQLite: cost.sqlite</text>
+  <text x="879" y="326" class="body">SQLite: performance.sqlite</text>
+  <text x="547" y="352" class="small">Durable checkpoint + proposal state</text>
+  <text x="879" y="352" class="small">Durable checkpoint + proposal state</text>
+  <text x="529" y="405" class="body">Deterministic default · Optional model output is advisory</text>
+  <text x="529" y="432" class="mono">AI_ACTION_EXECUTION_ENABLED=false</text>
+
+  <rect x="1259" y="168" width="485" height="292" rx="18" class="panel"/>
+  <text x="1283" y="203" class="heading">Optional reasoning provider</text>
+  <text x="1283" y="234" class="node-title">Bedrock · Amazon Nova Micro</text>
+  <text x="1283" y="262" class="body">Converse API · EC2 IAM instance role</text>
+  <text x="1283" y="289" class="small">Agents call from reasoning nodes, not checkpoints</text>
+  <text x="1283" y="315" class="small">Investigator may call with validated evidence</text>
+  <path d="M839 274H850V244H1223V268" class="advisory" style="marker-end:none"/>
+  <path d="M1211 268H1259" class="advisory"/>
+  <path d="M1502 378V337" class="advisory"/>
+  <text x="1517" y="355" class="label">budget gate</text>
+  <rect x="1283" y="378" width="437" height="62" rx="10" class="soft"/>
+  <text x="1299" y="402" class="label">REDIS · ADVISORY STATE + INFERENCE BUDGETS</text>
+  <text x="1299" y="425" class="small">Heartbeats / decisions · Budget unavailable → deny LLM</text>
+
+  <!-- Inputs use HTTP admission; neither agents nor Redis bypass the gateway. -->
+  <path d="M110 460V496H28V680H56" class="line"/>
+  <path d="M800 460V496H110" fill="none" stroke="#55505f" stroke-width="1.7"/>
+  <text x="190" y="486" class="label">HTTP read APIs + authenticated, policy-gated action proposals</text>
+  <text x="1259" y="488" class="small">Redis loss cannot grant admission or change the ledger.</text>
+
+  <rect x="44" y="524" width="1712" height="388" rx="20" fill="#f8f6fb" stroke="#dcd2ec" stroke-width="1.4"/>
+  <text x="68" y="560" class="eyebrow">02 / DURABLE ACTION PIPELINE</text>
+  <text x="68" y="585" class="small">PostgreSQL owns correctness. Kafka transports action IDs; duplicate deliveries are expected.</text>
+
+  <rect x="56" y="607" width="274" height="239" rx="13" class="panel"/>
+  <text x="76" y="641" class="node-title">FastAPI admission</text>
+  <text x="76" y="672" class="body">Operator / agent bearer auth</text>
+  <text x="76" y="700" class="body">Policy · Quota · Dependencies</text>
+  <text x="76" y="728" class="body">Version + idempotency checks</text>
+  <line x1="76" y1="748" x2="310" y2="748" class="rule"/>
+  <text x="76" y="778" class="label">ONE POSTGRESQL TRANSACTION</text>
+  <text x="76" y="807" class="body">Reservation + action + outbox</text>
+
+  <rect x="370" y="607" width="360" height="239" rx="13" fill="#f0eaf8" stroke="#a58bc9" stroke-width="1.5"/>
+  <text x="392" y="641" class="node-title">PostgreSQL</text>
+  <text x="392" y="667" class="label">AUTHORITATIVE · SAME DATABASE</text>
+  <line x1="392" y1="685" x2="708" y2="685" stroke="#d6c8e8"/>
+  <text x="392" y="714" class="body">Actions / reservations / outbox</text>
+  <text x="392" y="743" class="body">Simulator resources + receipts</text>
+  <text x="392" y="772" class="body">Effects + resource versions</text>
+  <text x="392" y="801" class="body">Incidents / holds / transitions</text>
+  <text x="392" y="828" class="body">Validated investigation reports</text>
+
+  <rect x="770" y="607" width="250" height="183" rx="13" class="panel"/>
+  <text x="790" y="641" class="node-title">Outbox publisher</text>
+  <text x="790" y="672" class="body">Separate process</text>
+  <text x="790" y="700" class="body">Lock unpublished rows</text>
+  <text x="790" y="728" class="body">Publish → broker ACK</text>
+  <text x="790" y="756" class="body">Then mark published</text>
+
+  <rect x="1060" y="607" width="250" height="183" rx="13" class="panel"/>
+  <text x="1080" y="641" class="node-title">Apache Kafka</text>
+  <text x="1080" y="672" class="body">KRaft · Single node</text>
+  <text x="1080" y="700" class="body">Action execution topic</text>
+  <text x="1080" y="728" class="body">At-least-once delivery</text>
+  <text x="1080" y="756" class="small">No replicated availability</text>
+
+  <rect x="1350" y="607" width="394" height="239" rx="13" class="panel"/>
+  <text x="1372" y="641" class="node-title">Execution worker</text>
+  <text x="1372" y="672" class="body">Consume action ID · Serialize execution</text>
+  <text x="1372" y="702" class="label">T1 · IDEMPOTENT SIMULATOR</text>
+  <text x="1372" y="728" class="body">Effect + durable receipt commit together</text>
+  <text x="1372" y="758" class="label">T2 · FINALIZE IN SAME POSTGRESQL</text>
+  <text x="1372" y="784" class="body">Effect ledger + version + action state</text>
+  <text x="1372" y="822" class="small">Kafka offset commits after handler returns</text>
+
+  <path d="M330 680H370" class="line"/>
+  <path d="M730 680H770" class="line"/>
+  <path d="M1020 680H1060" class="line"/>
+  <path d="M1310 680H1350" class="line"/>
+  <path d="M1547 846V875H550V846" class="line"/>
+  <rect x="800" y="861" width="538" height="28" rx="8" fill="#f8f6fb"/>
+  <text x="1069" y="881" text-anchor="middle" class="label">Receipt / finalization writes return to the same PostgreSQL</text>
+  <text x="790" y="821" class="small">ACK → database mark can replay.</text>
+  <text x="790" y="843" class="small">Receipts prevent repeated simulator effects.</text>
+
+  <!-- The evidence/control bus is PostgreSQL-backed, not a Kafka retry path. -->
+  <path d="M550 912V946H1469" fill="none" stroke="#55505f" stroke-width="1.7"/>
+  <path d="M550 846V912" fill="none" stroke="#55505f" stroke-width="1.7"/>
+  <path d="M325 980V946H550" class="line both"/>
+  <path d="M900 946V980" class="line both"/>
+  <path d="M1469 946V980" class="line both"/>
+  <rect x="624" y="931" width="551" height="29" rx="8" fill="#fcfbf8"/>
+  <text x="900" y="951" class="label" text-anchor="middle">PostgreSQL evidence reads + bounded state / report writes</text>
+
+  <rect x="56" y="980" width="538" height="265" rx="16" class="panel"/>
+  <text x="80" y="1013" class="eyebrow">03 / COLLECTIVE STABILITY</text>
+  <text x="80" y="1046" class="heading">Effect graph → deterministic controller</text>
+  <text x="80" y="1076" class="body">Committed, version-ordered effects reveal reversals</text>
+  <text x="80" y="1104" class="body">Resource holds constrain scale-down at admission</text>
+  <rect x="80" y="1123" width="490" height="39" rx="9" class="soft"/>
+  <text x="325" y="1149" text-anchor="middle" class="label">HOLD → VERIFYING → VERIFIED</text>
+  <text x="80" y="1192" class="body">Recurrence → bounded re-hold or ESCALATED</text>
+  <text x="80" y="1219" class="small">Sustained verification · Durable lifecycle transitions</text>
+
+  <rect x="614" y="980" width="572" height="265" rx="16" class="panel"/>
+  <text x="638" y="1013" class="eyebrow">04 / EVIDENCE INVESTIGATION</text>
+  <text x="638" y="1046" class="heading">Read-only evidence investigator</text>
+  <text x="638" y="1076" class="body">Read incident-linked effects + transition evidence</text>
+  <text x="638" y="1104" class="body">Correlate → validate schema + exact citations</text>
+  <text x="638" y="1132" class="body">Service persists validated report to PostgreSQL</text>
+  <text x="638" y="1170" class="body">Optional Bedrock analysis via the same provider</text>
+  <text x="638" y="1197" class="small">Advisory findings; never executes remediation</text>
+  <text x="638" y="1222" class="small">Incomplete evidence → abstain from model inference</text>
+
+  <rect x="1206" y="980" width="538" height="265" rx="16" class="panel"/>
+  <text x="1230" y="1013" class="eyebrow">05 / RECONCILIATION</text>
+  <text x="1230" y="1046" class="heading">Recovery service</text>
+  <text x="1230" y="1076" class="body">Sweep due / stalled PostgreSQL action records</text>
+  <text x="1230" y="1104" class="body">Compare ledger + receipt + simulator state</text>
+  <text x="1230" y="1132" class="body">Reuse guarded execution / finalization path</text>
+  <text x="1230" y="1170" class="body">Known-safe retries: deadlines + bounded attempts</text>
+  <text x="1230" y="1197" class="small">Divergent / uncertain effects → reconcile or escalate</text>
+  <text x="1230" y="1222" class="small">Reservations retained on divergence · No retry topics</text>
+
+  <rect x="56" y="1269" width="1688" height="111" rx="16" class="panel"/>
+  <text x="80" y="1301" class="eyebrow">06 / OBSERVABILITY</text>
+  <text x="80" y="1332" class="body">API · Publisher · Worker</text>
+  <text x="80" y="1358" class="small">Recovery · Controller</text>
+  <path d="M310 1330H356" class="line"/>
+  <text x="375" y="1328" class="node-title">Prometheus → Grafana</text>
+  <text x="375" y="1356" class="small">System · Execution · Collective dashboards</text>
+  <line x1="781" y1="1293" x2="781" y2="1358" class="rule"/>
+  <text x="811" y="1328" class="node-title">OpenTelemetry → Collector → Jaeger</text>
+  <text x="811" y="1356" class="small">W3C trace context: API → outbox → Kafka → worker</text>
+  <line x1="1320" y1="1293" x2="1320" y2="1358" class="rule"/>
+  <text x="1350" y="1328" class="node-title">CloudWatch Logs</text>
+  <text x="1350" y="1356" class="small">AWS container / application logs</text>
+
+  <text x="56" y="1418" class="eyebrow">07 / DEPLOYMENT BOUNDARIES</text>
+  <rect x="56" y="1438" width="463" height="139" rx="14" class="panel"/>
+  <text x="80" y="1470" class="heading">Local Docker Compose</text>
+  <text x="80" y="1501" class="body">Local-first development + isolated testing</text>
+  <text x="80" y="1528" class="body">PostgreSQL · Redis · Kafka · App services</text>
+  <text x="80" y="1555" class="small">Separate from Kubernetes runtime acceptance</text>
+
+  <rect x="539" y="1438" width="666" height="139" rx="14" class="soft"/>
+  <text x="563" y="1470" class="heading">Private AWS demo · Single EC2 host · STOPPED</text>
+  <text x="563" y="1501" class="body">ECR images · Encrypted EBS · IAM role · SSM · Terraform</text>
+  <text x="563" y="1528" class="body">Compose runtime · Bounded live verification on 2026-11-14</text>
+  <text x="563" y="1555" class="small">Historical evidence only; inference and action-execution gates off</text>
+
+  <rect x="1225" y="1438" width="519" height="139" rx="14" class="panel"/>
+  <text x="1249" y="1470" class="heading">Local Kubernetes + Helm · PENDING</text>
+  <text x="1249" y="1501" class="body">Cluster disabled · About 1.2 GiB free</text>
+  <text x="1249" y="1528" class="body">Static lint / render checks only</text>
+  <text x="1249" y="1555" class="small">Runtime acceptance incomplete · No EKS claim</text>
+
+  <line x1="56" y1="1600" x2="1744" y2="1600" stroke="#dcd6e5"/>
+  <text x="56" y="1630" class="label">PostgreSQL correctness · At-least-once transport · Simulator-specific idempotency · Advisory AI</text>
+  <path d="M1250 1625H1290" class="line"/><text x="1300" y="1630" class="small">Data / state</text>
+  <path d="M1430 1625H1470" class="advisory"/><text x="1480" y="1630" class="small">Optional model / budget gate</text>
+</svg>

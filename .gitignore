@@ -165,3 +165,7 @@ docs/validation/session-results.json
 .codex/
 .claude/
 .cursor/
+
+# Owner-specific execution records; existing tracked copies require manual index review.
+infra/deploy/final-*.sh
+infra/deploy/submit-final-operation.ps1

@@ -12,10 +12,122 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 
 from botkernel.core import engine
 from botkernel.security import operator_headers
+from botkernel.benchmark_runtime import require_owned_database, benchmark_api_url
+
+
+class BacklogSampler:
+    """Best effort bounded telemetry, independent of workload success."""
+
+    def __init__(self, interval=0.2, max_samples=5000):
+        if not 0.1 <= interval <= 10:
+            raise ValueError("Sample interval must be 0.1..10 seconds")
+        self.interval, self.max_samples = interval, max_samples
+        self.samples, self.errors = [], []
+        self.stop_event = threading.Event()
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.started = time.monotonic()
+
+    def _error(self, stage, error):
+        with self.lock:
+            if len(self.errors) < 100:
+                self.errors.append({"stage": stage, "type": type(error).__name__})
+
+    def _run(self):
+        db = consumer = None
+        partitions = None
+        try:
+            try:
+                db = create_engine(engine.url, pool_size=1, max_overflow=0,
+                                   pool_timeout=0.2, connect_args={"connect_timeout": 1})
+            except Exception as error:
+                self._error("database_setup", error)
+            try:
+                from confluent_kafka import Consumer, TopicPartition
+                group = os.getenv("KAFKA_CONSUMER_GROUP")
+                topic = os.getenv("KAFKA_TOPIC")
+                if not group or not topic:
+                    raise ValueError("Unique topic/group required")
+                consumer = Consumer({
+                    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+                    "group.id": group, "enable.auto.commit": False,
+                    "allow.auto.create.topics": False,
+                })
+            except Exception as error:
+                self._error("kafka_setup", error)
+            for _ in range(self.max_samples):
+                if self.stop_event.is_set():
+                    break
+                tick = time.monotonic()
+                sample = {"elapsed_seconds": round(tick - self.started, 3),
+                          "timestamp_ns": time.time_ns(), "unpublished_outbox": None,
+                          "active_actions": None, "consumer_lag": None, "partitions": None}
+                if db is not None:
+                    try:
+                        with db.begin() as connection:
+                            connection.execute(text("SET LOCAL statement_timeout = '500ms'"))
+                            row = connection.execute(text(
+                                "SELECT (SELECT count(*) FROM outbox WHERE NOT published) AS unpublished_outbox, "
+                                "(SELECT count(*) FROM actions WHERE state IN "
+                                "('RESERVED','DISPATCHED','OUTCOME_UNKNOWN','ESCALATED')) AS active_actions"
+                            )).mappings().one()
+                            sample.update(dict(row))
+                    except Exception as error:
+                        self._error("database_sample", error)
+                if consumer is not None:
+                    try:
+                        if partitions is None:
+                            metadata = consumer.list_topics(topic=topic, timeout=0.5).topics[topic]
+                            if metadata.error or not metadata.partitions or len(metadata.partitions) > 64:
+                                raise ValueError("Unavailable or excessive partitions")
+                            partitions = [TopicPartition(topic, p) for p in sorted(metadata.partitions)]
+                        committed = consumer.committed(partitions, timeout=0.5)
+                        offsets = []
+                        for partition in committed:
+                            if partition.error:
+                                raise ValueError("Committed offset unavailable")
+                            low, high = consumer.get_watermark_offsets(partition, timeout=0.5)
+                            offset = partition.offset if partition.offset >= 0 else None
+                            lag = high - offset if offset is not None and low <= offset <= high else (
+                                0 if offset is None and low == high else None)
+                            offsets.append({"partition": partition.partition, "low": low,
+                                            "high": high, "committed": offset, "lag": lag})
+                        sample["partitions"] = offsets
+                        if all(p["lag"] is not None for p in offsets):
+                            sample["consumer_lag"] = sum(p["lag"] for p in offsets)
+                    except Exception as error:
+                        self._error("kafka_sample", error)
+                with self.lock:
+                    self.samples.append(sample)
+                self.stop_event.wait(max(0, self.interval - (time.monotonic() - tick)))
+        except Exception as error:
+            self._error("sampler", error)
+        finally:
+            if consumer is not None:
+                try:
+                    consumer.close()
+                except Exception as error:
+                    self._error("kafka_close", error)
+            if db is not None:
+                db.dispose()
+
+    def stop(self):
+        self.stop_event.set()
+        self.thread.join(timeout=2)
+        with self.lock:
+            samples, errors = list(self.samples), list(self.errors)
+        return {"interval_seconds": self.interval, "max_samples": self.max_samples,
+                "sample_limit_reached": len(samples) == self.max_samples,
+                "thread_still_stopping": self.thread.is_alive(),
+                "samples": samples, "errors": errors,
+                "coverage": {key: sum(s[key] is not None for s in samples)
+                             for key in ("unpublished_outbox", "active_actions", "consumer_lag")},
+                "highwaters": {key: max((s[key] for s in samples if s[key] is not None), default=None)
+                               for key in ("unpublished_outbox", "active_actions", "consumer_lag")}}
 
 
 def percentile(values, percentile_value):
@@ -62,8 +174,7 @@ def _request(client, agent, resource, version, capacity, run_id, key):
 
 
 def run(count, concurrency, warmup, output):
-    if os.getenv("BOTKERNEL_BENCHMARK_OWNED") != "true" or engine.url.database != "bk_benchmark":
-        raise RuntimeError("A dedicated benchmark-owned database is required")
+    require_owned_database(engine.url.database, allow_legacy=True)
     if not 1 <= concurrency <= min(count, 10) or not 1 <= count <= 1000 or not 0 <= warmup <= 10:
         raise ValueError("Bounds: actions 1..1000, concurrency 1..min(actions,10), warmup 0..10")
     run_id = str(uuid.uuid4())
@@ -86,7 +197,8 @@ def run(count, concurrency, warmup, output):
     def worker(index):
         samples = []
         version, capacity = 0, 1
-        with httpx.Client(base_url="http://api:8000", timeout=10, headers=operator_headers()) as client:
+        with httpx.Client(base_url=benchmark_api_url(engine.url.database),
+                          timeout=10, headers=operator_headers()) as client:
             for phase, amount in (("warmup", warmup), ("measured", count // concurrency + (index < count % concurrency))):
                 if phase == "measured":
                     try:
@@ -109,9 +221,14 @@ def run(count, concurrency, warmup, output):
                     measurement_ends[index] = time.monotonic()
         return samples
 
+    sampler = BacklogSampler(float(os.getenv("BOTKERNEL_BENCHMARK_SAMPLE_INTERVAL", "0.2")))
+    sampler.thread.start()
     started = time.monotonic()
-    with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        samples = [sample for group in executor.map(worker, range(concurrency)) for sample in group]
+    try:
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            samples = [sample for group in executor.map(worker, range(concurrency)) for sample in group]
+    finally:
+        telemetry = sampler.stop()
     elapsed = time.monotonic() - started
     measured = [sample for sample in samples if sample["phase"] == "measured"]
     starts = [value for value in measurement_starts if value is not None]
@@ -120,7 +237,7 @@ def run(count, concurrency, warmup, output):
     ids = [sample["action_id"] for sample in samples if sample["action_id"]]
     with engine.connect() as connection:
         rows = [dict(row) for row in connection.execute(text(
-            "SELECT a.id::text AS id, a.state, o.published, "
+            "SELECT a.id::text AS id, a.state, o.published, o.trace_context, "
             "(SELECT count(*) FROM receipts r WHERE r.action_id=a.id) AS receipts, "
             "(SELECT count(*) FROM effects e WHERE e.action_id=a.id) AS effects "
             "FROM actions a JOIN outbox o ON o.action_id=a.id WHERE a.agent=:agent"
@@ -152,10 +269,11 @@ def run(count, concurrency, warmup, output):
                      for state in ("SUCCEEDED", "REJECTED", "FAILED", "ESCALATED", "TIMEOUT")},
         "observed_action_count": len(ids), "authoritative_rows": rows,
         "resource_versions": versions,
+        "backlog_telemetry": telemetry,
         "environment": {"python": platform.python_version(), "platform": platform.platform(),
                         "postgresql": pg_version, "kafka_image": "apache/kafka:3.9.0"},
         "unavailable": ["publication latency", "Kafka delivery latency", "worker execution latency",
-                        "consumer lag", "duplicate deliveries", "CPU and memory", "recovery fault injection"],
+                        "duplicate deliveries", "CPU and memory", "recovery fault injection"],
         "notes": ["Client monotonic timing; completion includes 50ms polling.",
                   "Throughput spans first measured submission to last observed terminal outcome after warmup.",
                   "Dedicated local PostgreSQL and Kafka; simulator resource changes only."],
@@ -185,5 +303,7 @@ if __name__ == "__main__":
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--warmup", type=int, default=1)
     parser.add_argument("--output", default="/results")
+    parser.add_argument("--sample-interval", type=float, default=0.2)
     args = parser.parse_args()
+    os.environ["BOTKERNEL_BENCHMARK_SAMPLE_INTERVAL"] = str(args.sample_interval)
     run(args.actions, args.concurrency, args.warmup, args.output)

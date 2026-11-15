@@ -1,0 +1,146 @@
+[
+  {
+    "monotonic": 1991946.296,
+    "sampling_seconds": 2.453999999910593,
+    "containers": [
+      {
+        "role": "api",
+        "cpu_percent_one_core": 0.46,
+        "memory_mib": 77.05
+      },
+      {
+        "role": "publisher",
+        "cpu_percent_one_core": 14.05,
+        "memory_mib": 51.95
+      },
+      {
+        "role": "worker",
+        "cpu_percent_one_core": 0.54,
+        "memory_mib": 53.27
+      },
+      {
+        "role": "postgres",
+        "cpu_percent_one_core": 5.18,
+        "memory_mib": 172.0
+      },
+      {
+        "role": "kafka",
+        "cpu_percent_one_core": 5.88,
+        "memory_mib": 808.9
+      },
+      {
+        "role": "redis",
+        "cpu_percent_one_core": 1.25,
+        "memory_mib": 2.102
+      }
+    ]
+  },
+  {
+    "monotonic": 1991949.265,
+    "sampling_seconds": 1.7810000001918525,
+    "containers": [
+      {
+        "role": "api",
+        "cpu_percent_one_core": 40.83,
+        "memory_mib": 78.14
+      },
+      {
+        "role": "publisher",
+        "cpu_percent_one_core": 11.43,
+        "memory_mib": 51.79
+      },
+      {
+        "role": "worker",
+        "cpu_percent_one_core": 16.16,
+        "memory_mib": 56.71
+      },
+      {
+        "role": "postgres",
+        "cpu_percent_one_core": 28.03,
+        "memory_mib": 188.7
+      },
+      {
+        "role": "kafka",
+        "cpu_percent_one_core": 14.18,
+        "memory_mib": 806.9
+      },
+      {
+        "role": "redis",
+        "cpu_percent_one_core": 0.78,
+        "memory_mib": 2.094
+      }
+    ]
+  },
+  {
+    "monotonic": 1991951.546,
+    "sampling_seconds": 1.6099999998696148,
+    "containers": [
+      {
+        "role": "api",
+        "cpu_percent_one_core": 54.74,
+        "memory_mib": 77.25
+      },
+      {
+        "role": "publisher",
+        "cpu_percent_one_core": 12.39,
+        "memory_mib": 51.58
+      },
+      {
+        "role": "worker",
+        "cpu_percent_one_core": 26.15,
+        "memory_mib": 55.27
+      },
+      {
+        "role": "postgres",
+        "cpu_percent_one_core": 28.56,
+        "memory_mib": 183.7
+      },
+      {
+        "role": "kafka",
+        "cpu_percent_one_core": 15.18,
+        "memory_mib": 804.2
+      },
+      {
+        "role": "redis",
+        "cpu_percent_one_core": 0.63,
+        "memory_mib": 2.336
+      }
+    ]
+  },
+  {
+    "monotonic": 1991953.656,
+    "sampling_seconds": 1.922000000020489,
+    "containers": [
+      {
+        "role": "api",
+        "cpu_percent_one_core": 0.44,
+        "memory_mib": 76.54
+      },
+      {
+        "role": "publisher",
+        "cpu_percent_one_core": 14.09,
+        "memory_mib": 52.12
+      },
+      {
+        "role": "worker",
+        "cpu_percent_one_core": 0.65,
+        "memory_mib": 55.26
+      },
+      {
+        "role": "postgres",
+        "cpu_percent_one_core": 5.45,
+        "memory_mib": 183.1
+      },
+      {
+        "role": "kafka",
+        "cpu_percent_one_core": 4.28,
+        "memory_mib": 803.3
+      },
+      {
+        "role": "redis",
+        "cpu_percent_one_core": 0.89,
+        "memory_mib": 1.836
+      }
+    ]
+  }
+]

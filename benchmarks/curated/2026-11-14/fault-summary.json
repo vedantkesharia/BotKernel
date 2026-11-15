@@ -1,0 +1,162 @@
+{
+  "cases": [
+    {
+      "run_id": "a58515a0-a15a-45d8-ad06-fc8f39a43754",
+      "action_id": "6e9be930-5796-4272-8969-a2006f654faa",
+      "crash_exit_code": 17,
+      "before_recovery": {
+        "state": "DISPATCHED",
+        "published": true,
+        "version": 0,
+        "ledger_capacity": 1,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 0
+      },
+      "after_recovery": {
+        "state": "SUCCEEDED",
+        "published": true,
+        "version": 1,
+        "ledger_capacity": 2,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 1
+      },
+      "completion_seconds_after_observed_crash": 6.035,
+      "explicit_duplicate_messages_acknowledged": 1,
+      "recovery_worker_handled_log_entries": 2,
+      "notes": [
+        "The original consumer exits after committing the simulator receipt and before ledger finalization.",
+        "A second Kafka message is deliberately published after the crash.",
+        "Timing uses the benchmark process monotonic clock and includes duplicate injection and consumer startup."
+      ],
+      "case": "receipt_crash_and_duplicate"
+    },
+    {
+      "run_id": "bd097d3d-5e16-42f8-9ed7-b175bd62e954",
+      "action_id": "b751a835-029f-4312-b8a2-495dce00a39a",
+      "crash_exit_code": 17,
+      "before_recovery": {
+        "state": "DISPATCHED",
+        "published": true,
+        "version": 0,
+        "ledger_capacity": 1,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 0
+      },
+      "after_recovery": {
+        "state": "SUCCEEDED",
+        "published": true,
+        "version": 1,
+        "ledger_capacity": 2,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 1
+      },
+      "completion_seconds_after_observed_crash": 6.045,
+      "explicit_duplicate_messages_acknowledged": 1,
+      "recovery_worker_handled_log_entries": 2,
+      "notes": [
+        "The original consumer exits after committing the simulator receipt and before ledger finalization.",
+        "A second Kafka message is deliberately published after the crash.",
+        "Timing uses the benchmark process monotonic clock and includes duplicate injection and consumer startup."
+      ],
+      "case": "receipt_crash_and_duplicate"
+    },
+    {
+      "run_id": "d6b4e5b1-d5f9-4af9-b15a-e36a2f26abf3",
+      "action_id": "d42637eb-2c06-442f-bcfb-10b76391df8b",
+      "crash_exit_code": 17,
+      "before_recovery": {
+        "state": "DISPATCHED",
+        "published": true,
+        "version": 0,
+        "ledger_capacity": 1,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 0
+      },
+      "after_recovery": {
+        "state": "SUCCEEDED",
+        "published": true,
+        "version": 1,
+        "ledger_capacity": 2,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 1
+      },
+      "completion_seconds_after_observed_crash": 6.132,
+      "explicit_duplicate_messages_acknowledged": 1,
+      "recovery_worker_handled_log_entries": 2,
+      "notes": [
+        "The original consumer exits after committing the simulator receipt and before ledger finalization.",
+        "A second Kafka message is deliberately published after the crash.",
+        "Timing uses the benchmark process monotonic clock and includes duplicate injection and consumer startup."
+      ],
+      "case": "receipt_crash_and_duplicate"
+    },
+    {
+      "case": "publisher_pause",
+      "action_id": "720c3d34-3dbd-46d1-a33b-4950dfba9739",
+      "resource": "fault-51491169f159409bb75ade9235ffcaa5",
+      "crash_exit_code": null,
+      "before_recovery": {
+        "state": "RESERVED",
+        "published": false,
+        "version": 0,
+        "ledger_capacity": 1,
+        "simulator_capacity": 1,
+        "receipts": 0,
+        "effects": 0
+      },
+      "after_recovery": {
+        "state": "SUCCEEDED",
+        "published": true,
+        "version": 1,
+        "ledger_capacity": 2,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 1
+      },
+      "handled_log_entries": 1,
+      "recovery_seconds": 5.405,
+      "timing": "monotonic from restart launch, excludes intentional 1s publisher pause",
+      "unresolved": 0
+    },
+    {
+      "case": "publisher_crash",
+      "action_id": "427bc050-386f-4c50-b479-f82f4819a5f9",
+      "resource": "fault-eb2ca77193c149919e8d08d34b532f76",
+      "crash_exit_code": 18,
+      "before_recovery": {
+        "state": "RESERVED",
+        "published": false,
+        "version": 0,
+        "ledger_capacity": 1,
+        "simulator_capacity": 1,
+        "receipts": 0,
+        "effects": 0
+      },
+      "after_recovery": {
+        "state": "SUCCEEDED",
+        "published": true,
+        "version": 1,
+        "ledger_capacity": 2,
+        "simulator_capacity": 2,
+        "receipts": 1,
+        "effects": 1
+      },
+      "handled_log_entries": 2,
+      "recovery_seconds": 4.687,
+      "timing": "monotonic from restart launch, excludes intentional 1s publisher pause",
+      "unresolved": 0
+    }
+  ],
+  "unresolved": 0,
+  "unique_effects": 5,
+  "notes": [
+    "3receipt-crash repeats;1publisher-crash and1pause case; timing boundaries differ.",
+    "Each receipt case injects1acknowledged duplicate; publisher case replays after ACK-before-outbox-commit crash."
+  ]
+}

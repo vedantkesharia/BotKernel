@@ -464,3 +464,35 @@ def test_contracts_and_poison_events():
             assert c.execute(text('SELECT count(*) FROM receipts')).scalar_one()==c.execute(text("SELECT count(*) FROM actions WHERE state='SUCCEEDED'")).scalar_one()
     finally:
         worker.terminate(); worker.wait(timeout=15)
+
+
+def test_worker_group_isolates_explicit_consumers_and_preserves_default(monkeypatch):
+    import botkernel.worker as worker
+    configs = []
+    class IdleConsumer:
+        def __init__(self, config): configs.append(config)
+        def subscribe(self, topics): pass
+        def close(self): pass
+    monkeypatch.setattr(worker, 'Consumer', IdleConsumer)
+    monkeypatch.setattr(worker, 'running', False)
+    monkeypatch.delenv('KAFKA_CONSUMER_GROUP', raising=False)
+    worker.consume()
+    monkeypatch.setenv('KAFKA_CONSUMER_GROUP', 'benchmark-owned-group')
+    worker.consume()
+    assert [c['group.id'] for c in configs] == ['executors', 'benchmark-owned-group']
+    assert all(c['enable.auto.commit'] is False for c in configs)
+
+
+@pytest.mark.parametrize('value', ['nan', 'inf', '-1', '0', '6'])
+def test_outbox_poll_interval_rejects_unbounded_or_invalid_values(monkeypatch, value):
+    from botkernel.worker import publisher_poll_interval
+    monkeypatch.setenv('OUTBOX_POLL_INTERVAL_SECONDS', value)
+    with pytest.raises(ValueError): publisher_poll_interval()
+
+
+def test_outbox_poll_interval_preserves_default_and_supports_measured_tuning(monkeypatch):
+    from botkernel.worker import publisher_poll_interval
+    monkeypatch.delenv('OUTBOX_POLL_INTERVAL_SECONDS', raising=False)
+    assert publisher_poll_interval() == .2
+    monkeypatch.setenv('OUTBOX_POLL_INTERVAL_SECONDS', '.02')
+    assert publisher_poll_interval() == .02

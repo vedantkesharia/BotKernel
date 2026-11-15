@@ -1,0 +1,4 @@
+{"timestamp":"2026-11-14T21:00:35.865782+00:00","event":"kafka_event_published","action.id":"427bc050-386f-4c50-b479-f82f4819a5f9","trace_id":"6ee548d17adabd75256f1985f50f931a","service":"botkernel-worker","botkernel.outcome":"broker_acknowledged"}
+{"timestamp":"2026-11-14T21:00:37.364373+00:00","event":"kafka_event_published","action.id":"427bc050-386f-4c50-b479-f82f4819a5f9","trace_id":"6ee548d17adabd75256f1985f50f931a","service":"botkernel-worker","botkernel.outcome":"broker_acknowledged"}
+{"timestamp":"2026-11-14T21:00:40.515643+00:00","event":"kafka_event_handled","action.id":"427bc050-386f-4c50-b479-f82f4819a5f9","trace_id":"6ee548d17adabd75256f1985f50f931a","service":"botkernel-worker","botkernel.outcome":"processed"}
+{"timestamp":"2026-11-14T21:00:40.538032+00:00","event":"kafka_event_handled","action.id":"427bc050-386f-4c50-b479-f82f4819a5f9","trace_id":"6ee548d17adabd75256f1985f50f931a","service":"botkernel-worker","botkernel.outcome":"processed"}

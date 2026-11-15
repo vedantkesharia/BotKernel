@@ -1,115 +1,37 @@
-# Local observability
+# Observability
 
-> **Latest result (2026-11-14):** AWS-hosted monitoring verified live: five targets UP, effect gauge24, three Grafana dashboards, correlated14-span API/publisher/worker trace and fresh CloudWatch action logs. All services are now stopped; private URLs require a new approved window. Earlier readiness-only notes are historical.
+Prometheus, three provisioned Grafana dashboards, OpenTelemetry through the Collector to Jaeger, and structured logs observe the real gateway/PostgreSQL/Kafka pipeline. Simulator capacity and latency remain modeled values. See [source](../botkernel/observability.py), [configuration](../observability) and [worker](../botkernel/worker.py).
 
-## AWS readiness continuation (2026-11-13)
+## Recorded AWS verification
 
-Current AWS monitoring is unverified because account discovery is blocked by expired login. See [AWS_DEMO_READY.md](AWS_DEMO_READY.md) for capacity-gated startup and private ports. AWS Compose now mounts the metrics secret into API as `BOTKERNEL_METRICS_TOKEN_FILE`, matching Prometheus instead of requiring a duplicate plaintext environment token. Local Compose instructions below retain their existing environment-token contract. AWS Prometheus/Grafana/Jaeger join the egress bridge as well as the internal backend, following the established dashboard host-port publication fix; UI bindings remain loopback-only and no ingress rule is added. Actual publication/scrapes/traces still require EC2 verification. Do not enable the full optional 1,600-MiB profile until measured OS/container headroom supports it.
+On November 14, 2026, the private AWS deployment showed **5/5 Prometheus targets UP**, a committed-effects gauge of **24**, and real series in System Overview, Distributed Execution Pipeline and Collective Reliability. One Jaeger trace contained **14 spans across API, publisher and worker**. Matching CloudWatch events recorded admission, publication and handling. This is bounded workflow evidence, not a throughput or capacity benchmark.
 
-## Local stack
+The deployment was stopped and tunnels closed after acceptance. Saved telemetry is historical, not current health. Prometheus runtime storage and Jaeger traces were ephemeral; restart does not guarantee those series or traces survive. CloudWatch logs were retained, with applicable storage charges. See [public validation evidence](VALIDATION.md).
 
-Prometheus, Grafana, the OpenTelemetry Collector and Jaeger are optional Compose-profile services. HTTP host ports bind to loopback; the Collector accepts OTLP only on the private Compose network. The application does not depend on monitoring services for admission or execution. To enable span export, set the OTLP endpoint explicitly; the default is blank and tracing export is disabled.
+## Metrics contracts
 
-Current local and AWS Compose configuration validates, and the three provisioned dashboard JSON files parse. The metrics-auth and trace-context tests pass locally, but the optional live Prometheus scrape test was skipped in the latest full suite. The runtime evidence below is historical local evidence, not current AWS observability acceptance. AWS monitoring services have not been started or browser-verified; they attach only to the internal backend network, so their loopback publication must be verified on that Docker host before relying on a tunnel. Grafana anonymous Viewer access is for private use only. The optional AWS profile adds 1,600 MiB of configured memory ceilings to the 5,312 MiB core ceilings; do not enable it on the small host without an approved capacity review.
+| Signal | Meaning and limitation |
+|---|---|
+| `botkernel_http_requests_total`, `botkernel_http_duration_seconds` | Bounded route/method/status-class requests and durations; metrics requests exclude themselves. |
+| `botkernel_action_admissions_total` | Best-effort process outcomes; resets at restart and can miss a post-commit crash. PostgreSQL remains authoritative. |
+| `botkernel_operations_total`, `botkernel_operation_duration_seconds` | Process attempts for publish, delivery, recovery sweeps and controller ticks; attempts are not unique effects. |
+| `botkernel_actions`, `botkernel_incidents` | Current database state gauges; absent states may have no series. |
+| `botkernel_outbox_backlog`, `botkernel_committed_effects`, `botkernel_dead_letters`, `botkernel_execution_attempts`, `botkernel_interventions`, `botkernel_recurrences` | PostgreSQL snapshot gauges; they can decrease under retention. |
+| `botkernel_incident_transitions_total` | Derived from durable transition rows committed with lifecycle changes. |
+| `botkernel_database_scrape_success` | Collection failure indicator; failure does not fabricate zero-valued state. |
 
-Create independent operator, agent and metrics credentials using a cryptographically secure generator. Keep them private. For Prometheus, write the metrics token without a newline to a private, scraper-readable file outside the repository. The API receives the same token via `BOTKERNEL_METRICS_TOKEN`; Prometheus reads it through the Compose secret selected by `BOTKERNEL_METRICS_TOKEN_FILE`. The metrics token permits only `GET /metrics`; it cannot access operational data or mutate state. Restart the API with an updated token when rotating it, and update the secret file for Prometheus. TLS and a private network remain necessary outside loopback.
+Only the API exports shared database totals. Its read-only repeatable-read collector has a dedicated bounded pool and connection, lock and statement timeouts. Process CPU/memory metrics describe instrumented processes, not host totals. Consumer lag and multi-process API metric aggregation remain unimplemented. Scrape availability alone does not prove worker progress.
 
-PowerShell from the repository root, after choosing a private file path and creating the operator and agent variables as described in the README:
+## Traces and logs
 
-```powershell
-$env:BOTKERNEL_API_PORT='18029'
-$env:BOTKERNEL_PROMETHEUS_PORT='19090'
-$env:BOTKERNEL_GRAFANA_PORT='13000'
-$env:BOTKERNEL_JAEGER_PORT='16686'
-$env:BOTKERNEL_OTEL_EXPORTER_OTLP_ENDPOINT='http://otel-collector:4318'
-$env:BOTKERNEL_METRICS_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
-$env:BOTKERNEL_METRICS_TOKEN_FILE = '<private-readable-token-file>'
-[IO.File]::WriteAllText($env:BOTKERNEL_METRICS_TOKEN_FILE, $env:BOTKERNEL_METRICS_TOKEN, [Text.UTF8Encoding]::new($false))
-docker compose -p botkernel-observe --profile observability --profile stability up --build -d postgres redis kafka init api publisher worker recovery controller prometheus grafana otel-collector jaeger
-Invoke-RestMethod http://127.0.0.1:18029/ready
-```
+Migration `0006` persists normalized W3C context with admission/outbox data. The publisher restores context and injects Kafka headers; consumer processing follows the asynchronous publish span. Missing or malformed context starts a new trace without rejecting work. Recovery links original context; independently scheduled controller traces link contributing actions rather than claiming synchronous parentage.
 
-The local API, Prometheus, Grafana and Jaeger UI are at `http://127.0.0.1:18029`, `http://127.0.0.1:19090`, `http://127.0.0.1:13000` and `http://127.0.0.1:16686`. Grafana's provisioned datasource is named `Prometheus` with UID `prometheus`; anonymous Viewer access is only for loopback development. Collector OTLP ports 4317/4318 are not published to the host. Jaeger 2.23.0 is the local trace viewer and uses in-memory storage, so its trace data is lost when the container is recreated. Do not start another project on the same host ports.
+The parent-based sampler uses `BOTKERNEL_TRACE_SAMPLE_RATIO` (default `1.0`). Bounded asynchronous export can lose spans without affecting database commits, Kafka offsets or simulator effects. Kafka remains at least once; ambiguous effects require reconciliation against durable evidence.
 
-Run the isolated PostgreSQL/Kafka suite with:
+JSON logs emit bounded allowlisted fields and omit authorization headers, request bodies and arbitrary extras. Transition logs/spans follow the PostgreSQL commit; durable rows remain authoritative if a process exits before emission. Logs/traces do not replace the ledger or constitute a comprehensive audit system.
 
-```powershell
-docker compose -p botkernel-observe --profile observability --profile stability run --build --rm --no-deps tests pytest -q
-```
+## Private operation
 
-Inspect with `docker compose -p botkernel-observe logs --tail 50 api publisher worker recovery controller otel-collector jaeger`. Stop without deleting data using `docker compose -p botkernel-observe --profile observability --profile stability down`; never use `down -v` on development volumes. Prometheus/Grafana state is ephemeral; dashboards are provisioned from `observability/provisioning` and `observability/dashboards`.
+The Compose `observability` profile supplies monitoring services. Keep UI bindings on loopback and background exporters inside the private network. Operator, agent and metrics credentials must be distinct; the metrics credential permits only `/metrics`. Local API configuration accepts the metrics token while Prometheus reads its configured secret file; AWS mounts that file into the API as well. See [security](../botkernel/security.py) and [Compose configuration](../compose.yaml).
 
-## Trace propagation and sampling
-
-The official OpenTelemetry Python API/SDK and OTLP HTTP exporter are used. The application versions resolved in the validated container were 1.45.2; the HTTP transport resolved to 0.66b2. The Collector image is 0.123.0 and Jaeger is 2.23.0. Prometheus and Grafana images are 3.2.1 and 11.6.0. `pyproject.toml` bounds the Python dependencies but does not lock transitive versions.
-
-Migration 0006 adds nullable, shape/length-constrained `outbox.trace_context` and the durable `incident_transitions` table. Admission normalizes W3C `traceparent`/`tracestate` and stores it in the same PostgreSQL transaction as the action and outbox row. The publisher loads that saved context, creates a publish span and injects its context into Kafka headers. A consumer extracts the headers and makes processing a child of that asynchronous publish. Old outbox rows without context and missing or malformed headers start an understandable new trace; invalid propagation data does not reject the action or crash the consumer. Action identity, payload, Kafka delivery semantics and transaction ordering are unchanged.
-
-The recovery sweeper reads the original context from the outbox and adds a span link to recovery execution. Controller evaluations are independently scheduled traces linked to the committed action contexts that supplied their evidence; they are not falsely represented as synchronous child operations. Trace links are bounded and deduplicated.
-
-Spans use a parent-based ratio sampler, defaulting to 1.0 and configurable with `BOTKERNEL_TRACE_SAMPLE_RATIO`. The SDK uses a 2,048-span bounded batch queue, batches up to 256 spans, a 500ms schedule delay and a two-second export timeout. Export is asynchronous; an unavailable Collector may lose spans but does not participate in or block the PostgreSQL transaction, Kafka commit, action admission or simulator effect.
-
-## Structured logs
-
-API, publisher, worker, recovery and controller use JSON logs. The formatter emits timestamp, severity, service/component and a bounded event name; valid trace/span IDs and allowlisted action/incident IDs, outcome, HTTP method/status and Kafka topic/partition/offset are included when available. It omits arbitrary message text, raw request paths/bodies, authorization headers and unrestricted extras. This means exception detail is intentionally not copied into structured events. API access logs use route-free method/status fields.
-
-Logs are process output, not a durable audit log. A log/span for an incident transition is emitted only after its PostgreSQL transaction commits. The durable transition row remains the source of truth if a process exits between commit and log emission.
-
-## Metrics and semantics
-
-- `botkernel_http_requests_total{route,method,category}` and `botkernel_http_duration_seconds{route,method}` describe bounded HTTP route-template/status classes and durations. Unmatched routes collapse to `unmatched`; `/metrics` does not count itself.
-- `botkernel_action_admissions_total{outcome}` has the fixed outcomes `accepted`, `validation_rejected`, `resource_conflict`, `quota_rejected`, `policy_rejected`, `dependency_failure` and `unexpected_error`. It is a best-effort process counter, resets at restart, and can undercount if the process exits after PostgreSQL commit but before incrementing. It is not an authoritative admission ledger.
-- `botkernel_operations_total{operation,outcome}` and `botkernel_operation_duration_seconds{operation}` count process attempts for publication, delivery, recovery sweeps and controller ticks. They are not durable effects; a recovery sweep is a batch, not a count of individual reconciliations.
-- `botkernel_actions{state}` and `botkernel_incidents{status}` are current PostgreSQL state gauges. Absent states have no series.
-- `botkernel_outbox_backlog`, `botkernel_committed_effects`, `botkernel_dead_letters`, `botkernel_execution_attempts`, `botkernel_interventions` and `botkernel_recurrences` are database snapshot gauges. They can decrease under retention and should not be treated as monotonically increasing counters.
-- `botkernel_incident_transitions_total{transition}` is derived from durable PostgreSQL transition rows, written in the same transaction as the lifecycle change. Replayed/idempotent API requests do not create a second transition unless a state transition commits.
-- `botkernel_database_scrape_success` distinguishes a successful snapshot from collection failure. On a database error, the collector emits this failure gauge only rather than fabricating zero-valued state.
-- Standard Prometheus process CPU/memory series describe each instrumented process, not the host or whole container.
-
-Only the API exports shared database totals, preventing worker-replica summation. The collector uses a dedicated one-connection pool with a 250ms pool-acquisition timeout, one-second PostgreSQL connect timeout, 500ms lock timeout and two-second statement timeout. It reads a read-only repeatable-read snapshot. The query still scans durable tables and should be profiled as retention grows; multi-process API metric aggregation and consumer lag are not implemented. Prometheus scrapes every five seconds with a four-second scrape timeout. The gateway `/metrics` requires an authorized token and the supplied Compose API port binds to loopback; background exporter ports are available only inside the Compose network.
-
-## Grafana
-
-Three provisioned dashboards are available: System Overview, Distributed Execution Pipeline and Collective Reliability. They use the provisioned local Prometheus datasource. Scrape availability is not equivalent to worker progress/readiness; histograms may be empty before requests occur. These charts use actual local service metrics, not discrete-event simulation output.
-
-All three dashboards were browser-reviewed at a desktop viewport with real API and worker data. Panels loaded without browser/query errors or “No data” states during the review. The Prometheus datasource proxy returned an actual committed-effect sample (34 at the final check); all five configured scrape targets—gateway, publisher, worker, recovery and controller—were `up`. This review is not a mobile-layout or production usability certification.
-
-## Verified execution evidence (2026-11-08)
-
-The isolated `botkernel-trace-verification` Compose project used PostgreSQL, Kafka, Redis, API, publisher, worker, recovery, controller, Collector and Jaeger with API port 18039 and Jaeger UI port 16687. Its bounded real gateway/outbox/Kafka/controller demo committed eight actions and demonstrated `HOLD -> VERIFIED -> HOLD`, one recurrence and two interventions.
-
-Jaeger trace `9d0ac2f258bc9241182ecda4fd654935` for action `ab543534-d952-4e66-ad44-e414e8664c99` contained 14 spans across the API, publisher and worker: `http.server`, FastAPI dependency/endpoint/serialization spans, `botkernel.http.action_submit`, `botkernel.action.admission`, `botkernel.postgresql.reserve_and_outbox`, `botkernel.outbox.load`, `botkernel.kafka.publish`, `botkernel.kafka.consume`, `botkernel.action.execute`, `botkernel.postgresql.mark_dispatched`, `botkernel.simulator.commit_receipt` and `botkernel.postgresql.finalize_action`. Publisher and worker JSON log records carried the same trace ID and action ID. Controller `botkernel.stability.resource_evaluation` spans were in separate traces with `FOLLOWS_FROM` links to the action trace.
-
-A second real action (`66dfbe32-821f-4d73-9798-39fecc5065db`) was crashed after its simulator receipt but before ledger finalization. PostgreSQL showed `DISPATCHED`, one receipt and no effect. The recovery worker completed the action; restarting the Kafka worker replayed the event, leaving one receipt, one committed effect and one resource-version increment. The recovery execution trace `dfd04f3f8f64143c3a2aa277a4a6c92e` included `botkernel.recovery.sweep` and `botkernel.action.execute`; that execution span linked with `FOLLOWS_FROM` to origin trace `7f17fe07616d7f4de29a8929c152534b`. Advancing the action's persisted retry deadline to now was used only to avoid waiting through the normal 30-second retry backoff; the recovery process performed the real reconciliation.
-
-With the Collector stopped, a separate gateway action (`95e88d67-e455-4f63-97b9-b14038296d95`) reached `SUCCEEDED` in 0.31 seconds. The Collector was restarted and `/ready` returned 200. This confirms execution independence, not trace retention during an outage.
-
-The complete PostgreSQL/Kafka integration suite passed twice after the final code change: 54 passed in 69.81s and 54 passed in 72.60s. Each run reported one existing Starlette/httpx deprecation warning. The suite includes isolated migration tests, persisted trace-context validation, malformed Kafka trace headers, duplicate delivery/replay and simulator crash recovery. Compose configuration and API readiness were validated.
-
-## Limits and safety
-
-No measured PostgreSQL/Kafka latency, throughput, CPU or memory benchmark was run in that historical observability session; simulation results are not backend performance evidence. No consumer-lag metric, durable trace storage, multi-process API metrics aggregation or production retention policy is claimed. Collector failure can drop telemetry by design. Controller causality is represented by span links because controller evaluations are asynchronous.
-
-The `botkernel-observe` development database retains the task's demo data. Its total resource capacity was restored to 18 against a quota of 20 using a gateway-ledger scale-down; no existing rows or volumes were deleted. The isolated trace-verification stack and its newly created volumes remain running for inspection. Stop either project with `docker compose -p <project> down` and do not add `-v`.
-
-No AWS APIs, credentials, paid inference, Terraform operations or cloud resources were used. No AWS spend occurred.
-
-## Optional local Kubernetes profile
-
-The existing local Helm chart can optionally deploy authenticated Prometheus scraping, Grafana with the same three dashboard JSON files, and the OpenTelemetry Collector/Jaeger pair. Services remain ClusterIP and the profile is off by default; the metrics token and Grafana administrator credentials are referenced from separately created Secrets. See [the Kubernetes runbook](../infra/kubernetes/README.md). These manifests are linted and statically rendered, but no Kubernetes runtime, scrape target, dashboard or trace has been verified. This does not change or replace the Compose observability evidence above.
-
-## Verified continuation — 2026-11-14
-
-Actual AWS verification completed before safe shutdown05:33:39UTC: five Prometheus targets UP, committed-effects gauge15; all three Grafana dashboards rendered real data over SSM; Jaeger trace8bafab00abf74a0da4a6273c72653d3f has15spans across API/publisher/worker for action56d880cb-4954-41ac-b350-6b7a26481135. Fresh CloudWatch events05:29:46UTC. Available memory5777MiB, no OOM/restarts. Owner approved restricted Prometheus container UID0 with cap_drop ALL/no-new-privileges, 128MiB temporary TSDB, unchanged host secret0600/directory0700. Include compose.metrics-access.yaml on restart; never chmod secret world-readable. Prometheus/Jaeger ephemeral evidence exported before stop into persistent aws-runtime-forensic.json and local infra/deploy/aws-final-runtime-proof.json. Browser evidence in aws-browser-proof.json and protected ignored screenshots. Current services/tunnels are stopped; local13000/19090/16686 were genuinely verified, now unavailable until approved restart.
-
-## Verified AWS observability - 2026-11-14 (now stopped)
-
-Actual EC2 services were reached through SSM, not local test monitoring.5Prometheus targetsUP; botkernel_committed_effects24; System/Execution/Collective dashboards rendered real series (execution screenshot showed15->24durable effects). Grafana's existing local simulation titles describe the workload, not the hosting location. Host sample7779MiB total/5886MiB available,13running containers,0restarts/noOOM. This is a bounded workload measurement, not peak-load capacity proof.
-
-Trace d8d4205ac0b7fd36fc8a247fab913e48 has14spans in botkernel-api,botkernel-publisher,botkernel-worker. It corresponds to action74ebe96f-cbe1-4f38-855e-d2586a72d422. Observed spans include http.server,botkernel.http.action_submit,botkernel.action.admission,botkernel.postgresql.reserve_and_outbox,botkernel.outbox.load,botkernel.kafka.publish,botkernel.kafka.consume,botkernel.action.execute,botkernel.simulator.commit_receipt,botkernel.postgresql.finalize_action. CloudWatch fresh06:54:33UTC records admitted,published,handled events with the same trace. No claim that controller or every database statement belongs to this trace.
-
-Sanitized evidence: infra/deploy/final-browser-proof.json,final-demo-trace.json,final-invariants-result.json,final-cloudwatch-proof.json; screenshots in owner-restricted .secrets/aws-console-access/final-*.png. Trace/target/metric snapshots also saved under /opt/botkernel/backups/final-acceptance-20261114/. Read actual graph/Bedrock/Grafana screenshots manually after browser success. Initial smoke authentication timing failure was a harness issue after full-page navigation; corrected with explicit sign-in and rerun, no application auth change.
-
-Approved metrics override compose.metrics-access.yaml runs ONLY Prometheus UID0 with all capabilities dropped/no-new-privileges; host metrics token remains0600 in0700directory. Do not weaken permissions. Startup must include BOTH compose files. All ports remain loopback; security group has zero ingress. Prometheus storage uses tmpfs and Jaeger is ephemeral: saved JSON/screenshots are historical proof, not a guarantee the old trace/time series survives restart. All services stopped and tunnels closed at end. See DEMO_RECORDING_GUIDE.md for exact later approved startup/forward/stop commands.
-
-Useful actual queries: botkernel_committed_effects; botkernel_outbox_backlog; sum(rate(botkernel_http_requests_total[5m])); histogram_quantile(0.95,sum by(le)(rate(botkernel_http_duration_seconds_bucket[5m]))). Histogram estimates are runtime telemetry, not a new throughput benchmark. Five targets must recover UP before claiming a new monitoring session healthy. CloudWatch group /botkernel/demo remains retained and billable as applicable.
+Retain restrictive credential-file permissions and supplied container hardening. Dashboards can be empty before traffic; simulation labels describe the workload even when AWS hosts it. Future AWS startup requires specific approval. Fresh monitoring claims require fresh scrape, dashboard and trace checks. See [roadmap](ROADMAP.md) for storage, restore and availability limits.

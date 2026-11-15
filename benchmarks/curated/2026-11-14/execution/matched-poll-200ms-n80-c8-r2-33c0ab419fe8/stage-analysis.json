@@ -1,0 +1,1199 @@
+{
+  "measured_actions": 80,
+  "measured_samples_without_action_id": 0,
+  "metrics": {
+    "outbox_wait_ms": {
+      "n": 80,
+      "missing_actions": 0,
+      "negative_count": 0,
+      "p50": 125.305,
+      "p95": 207.495,
+      "p99": 222.894
+    },
+    "dispatch_start_to_consume_ms": {
+      "n": 80,
+      "missing_actions": 0,
+      "negative_count": 0,
+      "p50": 200.67,
+      "p95": 371.572,
+      "p99": 427.672
+    },
+    "publication_ms": {
+      "n": 80,
+      "missing_actions": 0,
+      "negative_count": 0,
+      "p50": 3.174,
+      "p95": 10.675,
+      "p99": 14.735
+    },
+    "worker_execute_ms": {
+      "n": 80,
+      "missing_actions": 0,
+      "negative_count": 0,
+      "p50": 63.683,
+      "p95": 145.149,
+      "p99": 194.454
+    },
+    "finalization_ms": {
+      "n": 80,
+      "missing_actions": 0,
+      "negative_count": 0,
+      "p50": 27.508,
+      "p95": 102.853,
+      "p99": 155.581
+    }
+  },
+  "stage_coverage": {
+    "reserve": {
+      "n": 80,
+      "missing_actions": 0
+    },
+    "load": {
+      "n": 80,
+      "missing_actions": 0
+    },
+    "publish": {
+      "n": 80,
+      "missing_actions": 0
+    },
+    "consume": {
+      "n": 80,
+      "missing_actions": 0
+    },
+    "execute": {
+      "n": 80,
+      "missing_actions": 0
+    },
+    "finalize": {
+      "n": 80,
+      "missing_actions": 0
+    }
+  },
+  "invalid_spans": 0,
+  "duplicate_span_records": 0,
+  "conflicting_span_records": 0,
+  "invalid_or_missing_trace_context": 0,
+  "ambiguous_spans": 0,
+  "additional_stage_spans": {
+    "reserve": 0,
+    "publish": 0,
+    "load": 0,
+    "finalize": 0,
+    "execute": 0,
+    "consume": 0
+  },
+  "backlog_telemetry": {
+    "interval_seconds": 0.2,
+    "max_samples": 5000,
+    "sample_limit_reached": false,
+    "thread_still_stopping": false,
+    "samples": [
+      {
+        "elapsed_seconds": 0.039,
+        "timestamp_ns": 1794689583363302867,
+        "unpublished_outbox": 0,
+        "active_actions": 0,
+        "consumer_lag": 0,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 0.24,
+        "timestamp_ns": 1794689583564123098,
+        "unpublished_outbox": 0,
+        "active_actions": 0,
+        "consumer_lag": 0,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 0.44,
+        "timestamp_ns": 1794689583764080266,
+        "unpublished_outbox": 8,
+        "active_actions": 8,
+        "consumer_lag": 0,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 0,
+            "committed": null,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 0.64,
+        "timestamp_ns": 1794689583964425658,
+        "unpublished_outbox": 0,
+        "active_actions": 6,
+        "consumer_lag": null,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 2,
+            "committed": null,
+            "lag": null
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 4,
+            "committed": 2,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 2,
+            "committed": null,
+            "lag": null
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 0.84,
+        "timestamp_ns": 1794689584164404827,
+        "unpublished_outbox": 0,
+        "active_actions": 0,
+        "consumer_lag": 0,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 2,
+            "committed": 2,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 4,
+            "committed": 4,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 2,
+            "committed": 2,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 1.041,
+        "timestamp_ns": 1794689584364718789,
+        "unpublished_outbox": 7,
+        "active_actions": 7,
+        "consumer_lag": 0,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 2,
+            "committed": 2,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 4,
+            "committed": 4,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 2,
+            "committed": 2,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 1.241,
+        "timestamp_ns": 1794689584564898095,
+        "unpublished_outbox": 1,
+        "active_actions": 5,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 4,
+            "committed": 4,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 9,
+            "committed": 5,
+            "lag": 4
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 3,
+            "committed": 3,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 1.441,
+        "timestamp_ns": 1794689584765034834,
+        "unpublished_outbox": 4,
+        "active_actions": 6,
+        "consumer_lag": 2,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 4,
+            "committed": 4,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 9,
+            "committed": 9,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 5,
+            "committed": 3,
+            "lag": 2
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 1.641,
+        "timestamp_ns": 1794689584965118010,
+        "unpublished_outbox": 1,
+        "active_actions": 6,
+        "consumer_lag": 5,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 6,
+            "committed": 5,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 13,
+            "committed": 10,
+            "lag": 3
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 6,
+            "committed": 5,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 1.841,
+        "timestamp_ns": 1794689585165458922,
+        "unpublished_outbox": 1,
+        "active_actions": 6,
+        "consumer_lag": 5,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 7,
+            "committed": 5,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 12,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 7,
+            "committed": 6,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 2.042,
+        "timestamp_ns": 1794689585365656508,
+        "unpublished_outbox": 1,
+        "active_actions": 6,
+        "consumer_lag": 5,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 8,
+            "committed": 7,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 13,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 9,
+            "committed": 6,
+            "lag": 3
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 2.245,
+        "timestamp_ns": 1794689585569524265,
+        "unpublished_outbox": 4,
+        "active_actions": 6,
+        "consumer_lag": 6,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 10,
+            "committed": 8,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 11,
+            "committed": 7,
+            "lag": 4
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 2.446,
+        "timestamp_ns": 1794689585769752141,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 10,
+            "committed": 9,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 11,
+            "committed": 9,
+            "lag": 2
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 2.646,
+        "timestamp_ns": 1794689585969999158,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 12,
+            "committed": 10,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 11,
+            "committed": 10,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 2.85,
+        "timestamp_ns": 1794689586174481792,
+        "unpublished_outbox": 2,
+        "active_actions": 6,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 13,
+            "committed": 10,
+            "lag": 3
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 12,
+            "committed": 11,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 3.051,
+        "timestamp_ns": 1794689586374624200,
+        "unpublished_outbox": 1,
+        "active_actions": 5,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 15,
+            "committed": 12,
+            "lag": 3
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 13,
+            "committed": 12,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 3.251,
+        "timestamp_ns": 1794689586575240151,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 17,
+            "committed": 15,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 14,
+            "committed": 14,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 13,
+            "committed": 12,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 3.451,
+        "timestamp_ns": 1794689586775401997,
+        "unpublished_outbox": 2,
+        "active_actions": 6,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 18,
+            "committed": 16,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 15,
+            "committed": 14,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 14,
+            "committed": 13,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 3.652,
+        "timestamp_ns": 1794689586976602091,
+        "unpublished_outbox": 2,
+        "active_actions": 6,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 19,
+            "committed": 18,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 16,
+            "committed": 15,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 16,
+            "committed": 14,
+            "lag": 2
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 3.853,
+        "timestamp_ns": 1794689587176805718,
+        "unpublished_outbox": 0,
+        "active_actions": 4,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 19,
+            "committed": 19,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 19,
+            "committed": 16,
+            "lag": 3
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 17,
+            "committed": 16,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 4.053,
+        "timestamp_ns": 1794689587377066203,
+        "unpublished_outbox": 0,
+        "active_actions": 6,
+        "consumer_lag": 6,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 19,
+            "committed": 19,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 19,
+            "committed": 17,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 20,
+            "committed": 16,
+            "lag": 4
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 4.253,
+        "timestamp_ns": 1794689587577254839,
+        "unpublished_outbox": 3,
+        "active_actions": 6,
+        "consumer_lag": 5,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 20,
+            "committed": 19,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 19,
+            "committed": 19,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 21,
+            "committed": 17,
+            "lag": 4
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 4.454,
+        "timestamp_ns": 1794689587777999609,
+        "unpublished_outbox": 3,
+        "active_actions": 5,
+        "consumer_lag": 2,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 20,
+            "committed": 19,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 19,
+            "committed": 19,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 21,
+            "committed": 20,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 4.655,
+        "timestamp_ns": 1794689587979051980,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 20,
+            "committed": 20,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 22,
+            "committed": 19,
+            "lag": 3
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 21,
+            "committed": 21,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 4.855,
+        "timestamp_ns": 1794689588179280831,
+        "unpublished_outbox": 2,
+        "active_actions": 6,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 22,
+            "committed": 20,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 23,
+            "committed": 21,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 21,
+            "committed": 21,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 5.055,
+        "timestamp_ns": 1794689588379435347,
+        "unpublished_outbox": 1,
+        "active_actions": 6,
+        "consumer_lag": 5,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 24,
+            "committed": 20,
+            "lag": 4
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 23,
+            "committed": 22,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 21,
+            "committed": 21,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 5.256,
+        "timestamp_ns": 1794689588580499863,
+        "unpublished_outbox": 1,
+        "active_actions": 5,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 24,
+            "committed": 22,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 24,
+            "committed": 23,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 22,
+            "committed": 21,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 5.457,
+        "timestamp_ns": 1794689588781204549,
+        "unpublished_outbox": 0,
+        "active_actions": 4,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 25,
+            "committed": 24,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 25,
+            "committed": 23,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 22,
+            "committed": 21,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 5.657,
+        "timestamp_ns": 1794689588981384129,
+        "unpublished_outbox": 3,
+        "active_actions": 6,
+        "consumer_lag": 6,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 27,
+            "committed": 24,
+            "lag": 3
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 25,
+            "committed": 23,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 23,
+            "committed": 22,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 5.857,
+        "timestamp_ns": 1794689589181716366,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 27,
+            "committed": 25,
+            "lag": 2
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 25,
+            "committed": 25,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 23,
+            "committed": 22,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 6.059,
+        "timestamp_ns": 1794689589382665410,
+        "unpublished_outbox": 2,
+        "active_actions": 5,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 27,
+            "committed": 26,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 25,
+            "committed": 25,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 25,
+            "committed": 23,
+            "lag": 2
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 6.26,
+        "timestamp_ns": 1794689589583800346,
+        "unpublished_outbox": 1,
+        "active_actions": 3,
+        "consumer_lag": 2,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 27,
+            "committed": 27,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 26,
+            "committed": 25,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 26,
+            "committed": 25,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 6.46,
+        "timestamp_ns": 1794689589784034613,
+        "unpublished_outbox": 2,
+        "active_actions": 4,
+        "consumer_lag": 2,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 27,
+            "committed": 27,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 27,
+            "committed": 25,
+            "lag": 2
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 26,
+            "committed": 26,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 6.662,
+        "timestamp_ns": 1794689589986126275,
+        "unpublished_outbox": 2,
+        "active_actions": 6,
+        "consumer_lag": 4,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 30,
+            "committed": 27,
+            "lag": 3
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 28,
+            "committed": 27,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 26,
+            "committed": 26,
+            "lag": 0
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 6.863,
+        "timestamp_ns": 1794689590186699835,
+        "unpublished_outbox": 1,
+        "active_actions": 4,
+        "consumer_lag": 3,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 30,
+            "committed": 29,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 29,
+            "committed": 28,
+            "lag": 1
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 27,
+            "committed": 26,
+            "lag": 1
+          }
+        ]
+      },
+      {
+        "elapsed_seconds": 7.063,
+        "timestamp_ns": 1794689590387111456,
+        "unpublished_outbox": 0,
+        "active_actions": 1,
+        "consumer_lag": 2,
+        "partitions": [
+          {
+            "partition": 0,
+            "low": 0,
+            "high": 31,
+            "committed": 30,
+            "lag": 1
+          },
+          {
+            "partition": 1,
+            "low": 0,
+            "high": 29,
+            "committed": 29,
+            "lag": 0
+          },
+          {
+            "partition": 2,
+            "low": 0,
+            "high": 28,
+            "committed": 27,
+            "lag": 1
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "coverage": {
+      "unpublished_outbox": 36,
+      "active_actions": 36,
+      "consumer_lag": 35
+    },
+    "highwaters": {
+      "unpublished_outbox": 8,
+      "active_actions": 8,
+      "consumer_lag": 6
+    }
+  },
+  "unavailable": [
+    "CPU and memory (external orchestrator)"
+  ],
+  "definitions": {
+    "outbox_wait_ms": "outbox.load start minus reserve_and_outbox end",
+    "dispatch_start_to_consume_ms": "consume start minus publish start; includes producer/broker/consumer scheduling, not pure Kafka networking",
+    "publication_ms": "kafka.publish span duration",
+    "worker_execute_ms": "action.execute span duration including lock, simulator and finalization",
+    "finalization_ms": "postgresql.finalize_action span duration"
+  },
+  "notes": [
+    "One first observed stage per measured action; additional attempts disclosed.",
+    "Cross-process wall-clock deltas retain negative values; negative_count discloses clock/order anomalies.",
+    "Missing or sampled-out spans remain missing coverage; telemetry samples may include warmup."
+  ]
+}

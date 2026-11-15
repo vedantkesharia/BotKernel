@@ -1,56 +1,39 @@
 # BotKernel dashboard
 
-The React 19/Vite dashboard reads operational state from the local FastAPI service; it contains no fabricated telemetry.
+The React/Vite dashboard reads operational state from FastAPI. The landing contains an illustrative architecture diagram; console views use API data and label simulator capacity/latency. It does not claim actual cloud utilization or fabricate live metrics.
 
-## Routes
+## Routes and authentication
 
-- `/` - product landing page; it makes no operator API requests.
-- `/app` - API-backed Mission Control.
-- `/app/agents` - registered agents and ledger activity.
-- `/app/graph` - observed and inferred effect relationships from `/graph`.
-- `/app/incidents` - incident evidence, lifecycle, saved reports and state-gated local acknowledgement/resolution.
-- `/app/experiments` - bounded seeded comparisons, saved runs, charts and exports.
+| Route | View |
+|---|---|
+| `/` | Public landing; no operator API requests |
+| `/app` | Mission Control: health/readiness, allocation and ledger |
+| `/app/agents` | Fleet: registration, decisions, provenance and action outcomes |
+| `/app/graph` | Effect Graph: committed relationships, inferred reversals, filters and inspection |
+| `/app/incidents` | Investigations: lifecycle, evidence and saved reports |
+| `/app/experiments` | Deterministic experiments, saved runs, charts and exports |
 
-Legacy `/agents`, `/graph`, `/incidents` and `/experiments` URLs redirect to `/app/...`, preserving query strings used for evidence navigation.
+Legacy `/agents`, `/graph`, `/incidents` and `/experiments` redirect to `/app/...`, preserving query strings. There are six routes: the landing and five console views.
+
+Sign-in validates the operator bearer credential through `/auth/session`. The [API client](src/api.ts) retains it **only in memory**, sends bearer headers with credentials omitted and caching disabled, and clears it on an authenticated 401. Full-page reload requires sign-in again. Investigation session-storage idempotency keys are request identities, not saved credentials. Keep access private; shared-token authentication is not public multi-user authorization.
 
 ## Local development
 
-Start an explicitly named local stack from the repository root in PowerShell:
-
-```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Set BOTKERNEL_OPERATOR_TOKEN and BOTKERNEL_AGENT_TOKEN in the ignored .env file.
-$OperatorToken = (Get-Content .env | Where-Object { $_ -like 'BOTKERNEL_OPERATOR_TOKEN=*' }) -replace '^BOTKERNEL_OPERATOR_TOKEN=', ''
-docker compose -p botkernel-neutral-review up --build -d postgres redis kafka init api publisher worker recovery controller
-Invoke-RestMethod http://127.0.0.1:18019/ready
-Invoke-RestMethod http://127.0.0.1:18019/experiments -Headers @{ Authorization = "Bearer $OperatorToken" }
-Remove-Variable OperatorToken
-```
-
-Then, from `apps/dashboard` in another terminal:
+Configure a private stack and distinct operator/agent credentials using the [root README](../../README.md). Confirm its `/ready` endpoint succeeds. From this directory:
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173` after Vite starts; if that port is in use, use the URL Vite prints. Vite reads the server-only `BOTKERNEL_API_TARGET` from the repository's ignored `.env`; it does not expose the operator or agent tokens to browser code. This prevents a stale API container on port 8000 from silently serving `/ready` while returning 404 for `/experiments`. Both API checks above must return successfully. To create real graph and incident data, run `docker compose -p botkernel-neutral-review exec -T api python -m botkernel.live_demo` from the root. The bounded driver uses two registered identities but is one process and modifies this project's local demo data. Stop with `docker compose -p botkernel-neutral-review down`; do not add `-v` because that deletes its named volumes. The review stack is currently stopped, with its volumes retained.
+Use the URL Vite prints. Server-only `BOTKERNEL_API_TARGET` selects the backend; Vite reads repository environment configuration without exposing operator/agent tokens to browser code. Production Nginx proxies `/api/` over the private Compose network. Never put credentials in frontend build variables.
 
-`npm test` runs Vitest unit tests, `npm run build` runs TypeScript and Vite, and `npm run test:e2e` runs Chromium tests against the selected backend. Browser tests require Chromium (`npx playwright install chromium`) and a populated local API. Screenshots of all five routes at 1440x900, 1280x800 and 390x844 are saved under Git-ignored `visual-review/`.
+`npm test` runs Vitest; `npm run build` checks TypeScript and builds Vite; `npm run test:e2e` runs Chromium tests against the selected backend. Browser tests need Chromium, an isolated populated API and its operator credential. Experiments and demo drivers mutate simulator data; retain volumes when stopping the selected stack. These commands are usage instructions, not checks executed during documentation editing.
 
-Compose mounts the host `benchmarks/results` directory into the API. A bounded healthy-scaling run was written to that directory, and `/experiments/{id}` returned it after API container recreation. Browser tests also generate real simulator runs in this directory; keep them separate from operational performance benchmarks.
+## Data and action boundaries
 
-Experiment runs use the deterministic discrete-event harness, not a PostgreSQL/Kafka performance test. Results and limitations are documented in `../../docs/BENCHMARKS.md`. Playwright coverage includes desktop and mobile layouts, a real API-backed experiment, graph node/edge selection and filtering, incident evidence, mobile navigation, and API error/input-validation states. Set `BOTKERNEL_OPERATOR_TOKEN` in the Playwright process to the isolated API's credential. Keep the API private despite authentication.
+Mission Control derives readiness from `/health` and `/ready`; availability does not establish throughput. Fleet shows persisted provenance and authoritative outcomes when available. Graph links distinguish observations from inferences. Incident acknowledgement/resolution is state-gated and requires reasons/idempotency keys. Analysis gathers read-only evidence and saves reports, separating model hypotheses from deterministic findings.
 
-The dashboard uses configured shadcn/ui primitives, Motion, Recharts and XYFlow. The public landing is separate from the authenticated API-backed console and uses an illustrative architecture diagram, not fabricated live metrics. Mission Control derives readiness from `/health` and `/ready`, shows authoritative simulator allocation and recent ledger records, and does not claim throughput or actual AWS utilization. Investigations preserve evidence classifications and link actions into the Effect Graph. The lab's precision, recall, F1 and false-positive rate remain tick-level alarm occupancy, not episode-level incident metrics. Measured infrastructure performance charts remain future work. See `../../docs/BENCHMARK_AUDIT.md`.
+Experiments use a deterministic discrete-event harness. Tick-level alarm occupancy and episode-level matching have different denominators; neither establishes production accuracy. See [benchmarks](../../docs/BENCHMARKS.md) and [audit](../../docs/BENCHMARK_AUDIT.md).
 
-Investigation requests now reserve one of two default PostgreSQL session advisory-lock slots (`INVESTIGATION_MAX_CONCURRENT`, 1..16; configure consistently across instances). A new request gets HTTP 503 when no slot is free; duplicate requests reuse their record. The claim transaction commits before graph execution, while a dedicated pooled database connection holds the session lock; normal release and connection invalidation on release errors are implemented. A database disconnect releases locks even if Python computation continues; the lease fences finalization but does not terminate computation. This is not a hard global computation bound under lost database sessions and a hung live owner may retain a slot until its connection dies. The existing five-second SQL statement limit is not a whole-graph timeout.
-
-The existing Investigations page includes an API-backed saved-report panel, Analyze Incident, retry-stable session-storage keys, status/classification display and graph evidence links. The landing page and investigation-to-graph flow have repeatable Chromium coverage against the current local API. Visual checks cover 1440x900, 1280x800 and 390x844. A local E2E run created and retrieved a persisted report for a genuine Kafka/controller incident. Bedrock was not invoked.
-
-The Agent Fleet displays actual persisted provider/model provenance, latest structured decision, evidence, gateway approval and authoritative action/effect status when available. Investigations can explicitly request optional Bedrock analysis after deterministic evidence gathering; hypotheses are labeled, evidence links are validated, and recommendations are advisory. Mission Control reads `/health` and `/ready`, labels resources and telemetry as simulator data, and does not claim cloud utilization. Bedrock is disabled by default and was not live-verified; see `../../docs/LANGGRAPH.md`.
-
-## Private AWS demo (deployed)
-
-The deployment image is built from `Dockerfile.deploy` and served by Nginx with `/api/` proxied to FastAPI on the private Compose network. PostgreSQL, Kafka, Redis and the direct API have no host-published ports. The latest deployment applied migration `0009` and verified operator and agent authentication, dashboard loopback HTML and the authenticated incident proxy. The instance was stopped after acceptance; a real SSM tunnel and cloud browser session have not yet been verified. Do not expose this deployment to the public internet or a shared tunnel. See [`../../infra/terraform/README.md`](../../infra/terraform/README.md) for the separately authorized resume procedure.
-
+Bedrock and model-driven actions default to disabled. Genuine November 14 acceptance included advisory Cost/Performance `NO_OP` responses and a persisted Investigator report; it did not demonstrate model remediation. The private AWS landing and all five console views passed authenticated browser smoke, including graph inspection and saved usage. AWS is now stopped. Recorded frontend validation passed the build and 6 unit tests, with the existing large-bundle warning. See [validation](../../docs/VALIDATION.md), [LangGraph](../../docs/LANGGRAPH.md) and [Bedrock acceptance](../../docs/BEDROCK_ACCEPTANCE.md).

@@ -1,82 +1,55 @@
 # Architecture
 
-## Verified deployment and execution boundaries (2026-11-14)
+[Full system diagram](assets/botkernel-system-architecture.svg) ? [Asset audit](ARCHITECTURE_ASSET_AUDIT.md) ? [Validation](VALIDATION.md)
 
-The live deployment is one private EC2 host running Docker Compose. It is not
-Kubernetes or EKS. The same application has a separate local Helm deployment
-definition; local cluster runtime acceptance must be reported independently.
+## Boundaries and deployment
 
-```mermaid
-flowchart LR
-    Owner[Operator browser] -->|Private SSM tunnel| UI[React / Nginx]
-    UI -->|Authenticated API proxy| API[FastAPI admission]
-    Agents[Independent Cost / Performance LangGraphs] -->|Observe and propose| API
-    Agents --- Checkpoints[Separate SQLite checkpoints and proposal records]
-    Agents -.->|Optional advisory reasoning| Nova[Bedrock Nova Micro Converse]
-    API -->|Quota and version locks; reservation + outbox transaction| PG[(PostgreSQL)]
-    PG --> Publisher[Outbox publisher]
-    Publisher -->|At-least-once delivery; trace context| Kafka[Kafka]
-    Kafka --> Worker[Execution worker]
-    Worker -->|Idempotent receipt and committed effect| PG
-    PG --> Simulator[Versioned simulated resource capacity]
-    PG --> Controller[Deterministic Stability Controller]
-    Controller -->|Selective holds; verification; recurrence| PG
-    PG --> Investigator[Supervised read-only LangGraph Investigator]
-    Investigator -.->|Evidence-grounded advisory analysis| Nova
-    Investigator -->|Validated durable report| PG
-    Recovery[Recovery / reconciliation] --> PG
-    Redis[(Redis)] -.->|Advisory state and atomic inference-budget guard| Agents
-    Redis -.-> Investigator
-    API --> Telemetry[Prometheus / Grafana; OTel / Jaeger; CloudWatch]
-    Publisher --> Telemetry
-    Worker --> Telemetry
-    Controller --> Telemetry
-```
+BotKernel is a local-first AgentOps simulator. The verified AWS deployment is a single EC2 host running Docker Compose, private ECR images, retained encrypted EBS, an IAM instance role, SSM access and CloudWatch logging. It is not HA, Kubernetes or EKS. Its November14acceptance was bounded and the instance stopped afterward. Local Compose and the separate Helm chart are alternative runtimes; Kubernetes static checks have passed but actual cluster acceptance remains pending.
 
-PostgreSQL owns execution correctness. Redis is advisory for heartbeat/decision
-state, but the shared inference-budget guard deliberately fails closed when its
-Redis state is unavailable. That guard limits application-estimated tokens and
-calls; it is not an AWS billing cap. Bedrock cannot change resource state directly.
-All demonstrated capacity and latency values describe the simulator, not EC2
-resizing or measured cloud latency.
+Nginx serves React/Vite assets and proxies `/api` to FastAPI over the private container network. AWS browser access uses an encrypted SSM tunnel to EC2 loopback HTTP, not an implemented Nginx TLS terminator. Operational routes require an operator bearer credential; a separate restricted agent credential and metrics credential have narrower purposes. Health/readiness are public checks. The browser retains its operator token in memory only. Shared static credentials are not per-user/per-agent identity, expiry or production RBAC.
 
-Live evidence now includes valid Cost and Performance advisory model decisions,
-a persisted Bedrock Investigator report, and a separate deterministic eight-action
-driver run with one published outbox row, receipt and committed effect per action.
-The driver is not two autonomous LLM processes. Its incident reached HOLD,
-sustained VERIFIED recovery and recurrence; the later observed state was VERIFIED.
-A correlated trace includes API, publisher and worker spans. These bounded proofs
-do not establish general exactly-once external execution, high availability or
-production readiness. See the latest AWS handoff for identifiers, shutdown state
-and current verification limitations.
+## Agent decision and proposal lifecycle
 
-## Local-first system
+`botkernel/lang_agents.py` builds independent Cost and Performance StateGraphs. Observe/analyze/propose/submit/reconcile stages use stable role threads and separate role-specific SQLite checkpoint files in the independent runtime. Synchronous durability saves reasoning and immutable canonical request/fingerprint/idempotency identity before networking. An additive local proposal table records submission/reconciliation attempts, retry deadlines, authoritative action identity/outcome and terminal review states.
 
-Independent Cost and Performance agent processes observe simulator telemetry and submit proposals only through FastAPI admission. PostgreSQL owns quotas, resource reservations, the action ledger, the transactional outbox, committed effects, incidents, investigation reports and durable heartbeat timestamps. The publisher sends outbox events to Kafka; workers execute idempotent simulated effects and reconcile ledger state. A recovery worker retries bounded work and escalates ambiguous or exhausted actions. Redis contains advisory heartbeat/decision state and a fail-closed atomic inference-budget guard; PostgreSQL remains the execution correctness authority.
+Local Linux advisory ownership locks prevent cooperating writers from advancing one checkpoint simultaneously. Writable runtime entrypoints enforce ownership; Studio mutation is restricted. This is a tested local-filesystem guarantee, not distributed fencing or support for arbitrary network filesystems.
 
-The gateway serializes quota admission and idempotency with PostgreSQL advisory transaction locks. It reserves resource capacity and writes the action/outbox in one transaction. Workers check simulator receipts before replaying effects. Finalization takes the quota lock before changing capacity. The global admission lock is intentionally simple but limits throughput; no production throughput claim is made. Migrations 0001-0009 define the current schema; the root `schema.sql` remains a legacy reference.
+Default reasoning is deterministic. Optional Bedrock Converse (`botkernel/bedrock.py`) obtains EC2 role credentials through the standard SDK chain. Strict Pydantic contracts, role direction, capacity bounds, resource/evidence validation and provenance gates apply before the common submission boundary. `AI_ACTION_EXECUTION_ENABLED=false` prevents every model-originated action from reaching the gateway. Advisory proposals are never mislabeled executed. No model can change controller policy or mutate AWS infrastructure.
 
-The Collective Stability Controller reads committed effects and resource-specific reversal evidence, uses hysteresis and a sustained verification window, applies bounded temporary holds, reopens on recurrence and escalates after its intervention budget. Incident evidence retains initial and latest detection snapshots for reconstruction. The seeded comparison harness is a simulation, not production telemetry or a PostgreSQL/Kafka benchmark; do not claim controller superiority from it.
+Ambiguous requests retain original proposal identity. Accepted actions reconcile by authoritative lookup instead of repeated POST. Persistent backoff and bounded attempts pause unresolved work for review; local retry exhaustion does not prove an external effect failed. Model calls use one SDK attempt, no automatic model fallback and no automatic ambiguous-call retries. Reports/checkpoints retain provider, requested model/profile, returned usage/request ID where available. Input-byte estimates and Redis reservations are application limits, not billing guarantees.
 
-Cost and Performance agents use separate LangGraph processes and role-specific SQLite checkpoints. The investigator uses deterministic, read-only PostgreSQL evidence collection; optional Bedrock hypotheses are labeled separately from verified facts and deterministic inferences. Model providers have no direct database, Kafka, infrastructure or remediation tools. Any agent proposal still goes through the gateway and deterministic controller.
+## Admission and transactional outbox
 
-The investigator uses idempotent PostgreSQL report claims, a fenced lease and a bounded pool of session advisory slots. Evidence statements have a five-second timeout. Each computation runs in a fresh supervised process with a configurable execution deadline and termination grace; the supervisor terminates it and escalates to a forced kill. A timed-out report is fenced and marked failed when PostgreSQL is available. Local process termination remains subject to OS behavior; a lost database session can release a slot while its process is still running, so the slot count is not a strict distributed cap during partitions. An interrupted Bedrock call can have an ambiguous charged outcome and is not automatically repeated.
+`botkernel/api.py` validates requests and authentication. `botkernel/core.py` serializes idempotency, locks quota before resource, verifies expected version and existing reservation, then enforces policy, dependencies, deadline and selective controller holds. PostgreSQL commits action/reservation and outbox in one transaction. A reused key with a different payload fails closed; a model cannot escape that conflict with a fresh key for the same uncertain operation.
 
-## Local observability
+Alembic **0009** is the current schema. Startup checks migration compatibility/drift rather than silently repairing unknown operational history. PostgreSQL owns quotas, versions, action states, receipts, committed effects, incidents, transitions and reports.
 
-The optional local Compose profile provides Prometheus, provisioned Grafana, an OpenTelemetry Collector and Jaeger. W3C trace context is persisted through the outbox and Kafka headers. Admission counters are process-local best-effort metrics; ledger and incident data in PostgreSQL remain authoritative. Monitoring storage is local and is not a production retention or access-control design. See [OBSERVABILITY.md](OBSERVABILITY.md).
+The publisher is a separate process in `botkernel/worker.py`. It reads unpublished rows with `FOR UPDATE SKIP LOCKED`, waits for Kafka acknowledgement and marks publication inside the transaction. Death after broker ACK but before transaction commit can publish a duplicate. Kafka remains **at-least-once**, despite producer idempotence. The single-node KRaft broker has no HA; the implementation uses an action topic, not a separate recovery/retry-topic architecture.
 
-## AWS single-host deployment model
+`OUTBOX_POLL_INTERVAL_SECONDS` preserves the200msdefault and permits bounded opt-in tuning; it does not weaken publication or transaction rules. `KAFKA_CONSUMER_GROUP` defaults to `executors` and allows isolated test groups. The [matched measurements](ENGINEERING_RESULTS.md) show both benefits and adverse high-concurrency/CPU tradeoffs.
 
-Terraform and Compose describe an optional private, single-host AWS demonstration using EC2, ECR, CloudWatch Logs and SSM. Bounded AWS live acceptance is recorded in the latest handoff; running/stopped state must always be checked separately. Runtime credentials belong in host-only secret files or an instance role, never in source or images. Operator routes require a bearer credential but application ports must remain private. Review [the Terraform guide](../infra/terraform/README.md) for deployment prerequisites and approval gates. This design is not highly available; backup/restore has not been verified, and cloud storage and runtime can incur charges.
+## Worker, simulator and reconciliation
 
-## Local Kubernetes templates
+Workers consume action IDs with trace context. Execution holds a per-action PostgreSQL session advisory lock across transactions. The simulator capacity change and receipt commit atomically. Finalization then takes the authoritative quota lock, writes an immutable committed-effect row and advances resource version/action state in a separate transaction.
 
-The [local Helm chart](../infra/kubernetes/README.md) defines single-instance stateful services, a migration job, application deployments and optional agents with distinct checkpoint claims. Services are private ClusterIP; database and operator/agent Secrets are supplied separately. Bedrock controls are exposed but default off, and an optional observability profile provisions authenticated Prometheus scraping, Grafana and the existing dashboard files, and Collector/Jaeger tracing. The chart has been linted and rendered, but it has not been installed or validated end to end; it is not an HA or production deployment.
+A crash after receipt but before finalization leaves a reconcilable state: external simulator capacity changed, receipt present, ledger version/effect not yet advanced. Replay checks receipt and external state before repeating anything. Unknown external divergence escalates and preserves reservation; absence of a receipt plus a known expired/exhausted operation can fail safely. Recovery uses the same guarded execution path. Kafka offsets commit after handling; malformed/unknown messages enter the dead-letter ledger.
 
-## Runtime limitations
+This is simulator-specific idempotency, not universal exactly-once computation or external execution. Receipts and version constraints cannot make an arbitrary remote API atomic.
 
-- The console uses a single operator bearer credential in memory; the distinct agent credential is restricted to registration, telemetry, action submission and reconciliation. Authentication does not replace a private network boundary or TLS.
-- The Compose broker is a single-node Kafka and the database is a single-host PostgreSQL instance; there is no HA or managed failover.
-- Historical single-host AWS demonstrations do not establish current deployment or IAM state.
-- Live Bedrock inference, Kubernetes runtime and backup/restore remain unverified.
+## Collective stability and investigation
+
+`botkernel/stability.py` derives directional reversals from committed effects. Detection uses multiple changes/agents, reversal count, modeled harmful latency and a bounded score. Holds are resource-specific scale-down restrictions, not global pauses; safe scale-up still faces quota/version policy. Sustained samples/verification and hysteresis govern recovery. Recurrence reopens containment; a bounded intervention budget escalates persistent harm. Operator review actions are authenticated and durably recorded; model output cannot release a hold.
+
+The Investigator StateGraph retrieves committed incident/effect evidence, correlates reversals and produces verified facts, deterministic inferences and explicitly labeled hypotheses. A supervised subprocess has bounded execution and cancellation; database leases/concurrency slots fence stale completions. Optional Bedrock analysis must satisfy the exact schema and cite supplied evidence. It has no mutation tools. The service persists the validated report in PostgreSQL and serves idempotent retrieval; read-only evidence gathering does not mean report persistence is absent.
+
+Redis stores advisory heartbeats/decision snapshots. Its shared atomic model call/token guard intentionally fails closed if unavailable, but it is not the execution ledger and loss/reset can remove budget history. Redis must never be reset or switched merely to obtain inference allowance.
+
+## Evidence and telemetry
+
+Trace context crosses admission, outbox and Kafka boundaries. OpenTelemetry spans cover reservation/outbox, publication/consumption, simulator receipt and finalization. Prometheus exports request/operation metrics and durable database gauges; Grafana visualizes them; Jaeger retrieves traces; CloudWatch stores structured AWS logs. Counters reset with processes; durable gauges and recorded rows have different semantics. Trace/metrics retention depends on configured storage and may be ephemeral.
+
+[Real benchmarks](BENCHMARKS.md) execute HTTP/PostgreSQL/Kafka with monotonic client timing, stage spans and sampled resource/offset telemetry. [Controller comparisons](ENGINEERING_RESULTS.md#controller-stability-and-tradeoffs) are seeded virtual simulations. Their modeled latency/throughput and alarm labels must never be presented as real backend performance.
+
+## Known limits
+
+Single-host storage/broker/database, a globally serialized quota path, one worker in measured workloads, local-only checkpoint ownership, shared credentials, incomplete disaster-recovery restore proof and unverified Kubernetes runtime remain explicit limits. Bounded historical AWS acceptance does not establish current cloud availability or general production readiness.

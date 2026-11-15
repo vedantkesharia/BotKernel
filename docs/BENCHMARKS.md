@@ -1,3 +1,101 @@
+# Benchmarks: latest measured study (2026-11-14)
+
+[Engineering results](ENGINEERING_RESULTS.md) is authoritative for the latest numbers and definitions. This page provides reproduction commands and an evidence index; older reports below remain explicitly historical.
+
+## Latest measured outcomes
+
+The predeclared interleaved study includes **all 18 runs**: 24 actions/1 client, 48/4 and 80/8, three repeats at both 200 ms and opt-in 20 ms publisher polling. **912 measured actions + 78 warmups = 990 successful unique simulator effects**, each with one published outbox row, receipt and effect, and consistent resource versions. All submissions returned HTTP 202; no measured rejection, failure, escalation or timeout occurred.
+
+Each cell below is the median of three run-level results. Throughput is confirmed effects/s; latency is milliseconds. All distributions and min/max remain in the curated evidence.
+
+| Actions / clients | Poll ms | Effects/s | Admission p50 / p95 / p99 | Completion p50 / p95 / p99 |
+|---|---:|---:|---|---|
+| 24 / 1 | 200 | 4.717 | 22.701 / 37.984 / 46.403 | 206.695 / 259.402 / 263.407 |
+| 24 / 1 | 20 | 10.465 | 22.868 / 41.191 / 43.311 | 94.001 / 120.842 / 179.294 |
+| 48 / 4 | 200 | 14.762 | 40.681 / 84.312 / 122.283 | 264.682 / 382.406 / 428.108 |
+| 48 / 4 | 20 | 25.205 | 40.991 / 69.303 / 80.103 | 138.318 / 222.237 / 240.569 |
+| 80 / 8 | 200 | 12.723 | 133.707 / 235.936 / 271.375 | 626.129 / 815.305 / 865.320 |
+| 80 / 8 | 20 | 12.337 | 137.079 / 279.838 / 345.965 | 601.699 / 927.094 / 994.559 |
+
+At 24/1 and 48/4, throughput increased 121.86% and 70.74%. At **80/8 it decreased 3.03%**, completion p95 increased **13.71%**, and admission p95 increased **18.61%**. Admission p95 also worsened at 24/1. Faster polling is workload-specific; the default remains 200 ms. The 48/4 20 ms throughput range was 15.722-26.661 effects/s.
+
+The separate **five fault cases** comprise three receipt-before-finalization crashes with duplicate injection (6.035 / 6.045 / 6.132 s), one publisher ACK-before-outbox-commit crash (4.687 s), and one publisher pause (5.405 s after restart launch). All five actions completed with five unique effects and zero unresolved actions. Timing boundaries differ; these are simulator-specific idempotency observations under at-least-once delivery.
+
+The virtual controller study includes **10 seeds x 8 scenarios x 3 policies = 240 runs**, each 120 ticks, with matched input digests across policies. Collective versus basic reduced oscillation reversals 47 to 15 and interventions 7 to 2, but modeled p95 worsened 154.573 to 264.283 ms, logical throughput fell 0.658 to 0.308 actions/virtual s, and tick false-positive occupancy rose 0.178 to 0.800. Collective had 10 outside-truth oscillation onsets versus basic's zero; it avoided basic's 10 each in simultaneous_resources and temporary_spike. Healthy scaling had no alarms. See all 24 scenario/policy groups rather than selecting favorable cases. These are model outputs, not service throughput.
+
+## Limits that accompany the results
+
+- All six correlated stages cover 912/912 measured actions. Outbox wait is a span-boundary proxy with **37 retained negative deltas**, not an exact commit-to-dispatch measurement. Dispatch includes scheduling; worker execution includes finalization, so stage percentiles overlap and must not be added.
+- Consumer lag is known for **415/448 samples**; 33 unknown offsets stay unknown. Backlog sampling had zero errors. Maximum known lag at 80/8 rose 6 to 7 despite a lower sampled outbox backlog.
+- Measurement windows were **1.800-6.900 s**, with only three repeats per cell and unstable p99 estimates. Existing containers shared the host and PostgreSQL/Kafka; Node/SVG/browser review overlapped later measurements. Interleaving reduces order bias, not host confounding. This is not a capacity-limit experiment or proof of a unique causal bottleneck.
+- Publisher pooled sampled median CPU rose **2.64% to 13.39% of one core**. Sparse Docker CPU/RAM samples include startup/warmup/end periods, omit client/other host processes, and are neither absolute peaks nor CPU cost per effect.
+- Historical **2.7-3.6 effects/s** runs used a different protocol/environment and are not matched baselines. Ten simulator seeds do not establish ten independent workload calibrations or universal controller superiority. Episode precision penalizes fragmentation and differs from out-of-truth onset counts and tick occupancy.
+
+## Curated evidence
+
+- [Execution summary CSV](../benchmarks/curated/2026-11-14/execution-summary.csv), [full distributions and metadata](../benchmarks/curated/2026-11-14/execution-summary.json), and [polling tradeoff chart](../benchmarks/curated/2026-11-14/polling-tradeoff.svg). Each run's `evidence_dir` links compressed raw samples, role spans, derived analysis and sanitized Docker samples.
+- [All five fault snapshots and handling events](../benchmarks/curated/2026-11-14/fault-summary.json).
+- [All 24 controller groups CSV](../benchmarks/curated/2026-11-14/controller-summary.csv) and [full ten-seed controller summary](../benchmarks/curated/2026-11-14/controller-summary.json), with per-seed evidence under [controller](../benchmarks/curated/2026-11-14/controller/).
+- [SHA-256 evidence manifest](../benchmarks/curated/2026-11-14/SHA256.json) and [methodology audit](BENCHMARK_AUDIT.md).
+
+## Reproduction commands
+
+Run from the repository root. These are prospective commands, not validation executed by this documentation update. Real-system commands require the existing local `bk-final-regression` PostgreSQL/Kafka/Redis infrastructure and `bk-final-regression-tests:latest` image with the current benchmark modules. The runner creates new benchmark databases, topics/groups and app containers on that shared infrastructure; it does not reproduce an identical host load. No AWS or paid API is needed.
+
+For a fresh clone, use Python 3.12+ and Docker Desktop with Linux containers/Compose. In a host virtual environment, install the project if needed for `botkernel.evaluation`. The project dependencies include `confluent-kafka>=2.6,<3` (including `confluent_kafka.admin`), Psycopg, SQLAlchemy, HTTPX and tracing libraries; the Dockerfile installs the same project dependencies in the benchmark image. No separate Kafka Python package is needed. Use an interpreter/platform with a compatible confluent-kafka wheel; source builds require librdkafka and compiler prerequisites.
+
+```powershell
+# Optional host environment setup, if project dependencies are not already installed.
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+
+# Fresh-clone local infrastructure and benchmark image; no application/test startup.
+docker compose -p bk-final-regression -f compose.yaml up -d --wait postgres redis kafka
+docker build -t bk-final-regression-tests:latest .
+
+# Confirm broker readiness before launching the runner; retry if Kafka is still starting.
+docker compose -p bk-final-regression -f compose.yaml exec -T kafka /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092
+```
+
+Compose also runs the Kafka volume-permission initializer. PostgreSQL has a healthcheck; Kafka readiness is checked separately above. Reuse an existing compatible project rather than resetting its data; these commands retain volumes. The runner uses the `bk-final-regression_default` network and expects the standard PostgreSQL credentials from `compose.yaml`. Its memory guard requires at least 650 MiB available before each run; more headroom is advisable. Fresh-clone results will not reproduce the original competing host load.
+
+```powershell
+# All 18 throughput runs; order reverses in the second repeat.
+python -B scripts/run-shared-benchmarks.py --execute --infrastructure-project bk-final-regression --image bk-final-regression-tests:latest --actions 24 48 80 --concurrency 1 4 8 --repeats 3 --poll-seconds 0.2 --compare-poll-seconds 0.02 --label matched-poll
+
+# Exact executed selector: --actions 1 still runs all five fixed recovery cases.
+python -B scripts/run-shared-benchmarks.py --execute --recovery --infrastructure-project bk-final-regression --image bk-final-regression-tests:latest --actions 1 --concurrency 1 --repeats 1 --poll-seconds 0.2 --label fault-matrix
+
+# Two predeclared five-seed blocks; all eight scenarios and three policies by default.
+python -B -m botkernel.evaluation --seeds 1103 1201 1301 1409 1511 --duration 120 --output benchmarks/results
+python -B -m botkernel.evaluation --seeds 1601 1709 1801 1901 2003 --duration 120 --output benchmarks/results
+```
+
+Each invocation creates fresh UUID-named evidence. For offline stage analysis of one run, use its raw JSON and three exported role files; choose a new output path (exclusive creation preserves earlier analysis):
+
+```powershell
+python -B -m botkernel.benchmark_analysis --raw <run-dir>/<uuid>/raw.json --spans <run-dir>/telemetry/api.jsonl <run-dir>/telemetry/publisher.jsonl <run-dir>/telemetry/worker.jsonl --output <new-analysis.json>
+```
+
+The offline stage analyzer uses only the standard library. The curated exporter also generates an SVG with **optional host packages `matplotlib` and `numpy`**; they are not declared project dependencies. Install them in the host environment only if needed before export:
+
+```powershell
+python -m pip install matplotlib numpy
+```
+
+Replace angle-bracket placeholders before execution. To curate all completed sessions, substitute the new comparison/fault session directories and two evaluation UUID directories; `--output` must not exist:
+
+```powershell
+python -B scripts/export-engineering-results.py --comparison <comparison-session> --faults <fault-session> --controllers <seed-block-1-dir> <seed-block-2-dir> --output <new-curated-dir>
+```
+
+## Historical reports retained below
+
+Everything below this divider is the preserved earlier report, including its then-current commands, numbers, unavailable metrics and follow-up status. References to "current" or "current run" below describe that historical session only. They do not supersede the latest study or imply that historical follow-ups remain unimplemented.
+
+---
+
 # Collective Stability evaluation
 
 ## Reproduce the current run

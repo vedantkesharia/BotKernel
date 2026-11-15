@@ -13,12 +13,14 @@ from sqlalchemy import text
 
 from botkernel.core import engine
 from botkernel.security import operator_headers
+from botkernel.benchmark_runtime import require_owned_database, benchmark_api_url
 
 
 def snapshot(action_id, resource):
     with engine.connect() as connection:
         return dict(connection.execute(text(
-            "SELECT a.state, o.published, r.version, "
+            "SELECT a.state, o.published, r.version, r.capacity AS ledger_capacity, "
+            "(SELECT capacity FROM external_resources er WHERE er.id=r.id) AS simulator_capacity, "
             "(SELECT count(*) FROM receipts WHERE action_id=a.id) AS receipts, "
             "(SELECT count(*) FROM effects WHERE action_id=a.id) AS effects "
             "FROM actions a JOIN outbox o ON o.action_id=a.id "
@@ -27,8 +29,7 @@ def snapshot(action_id, resource):
 
 
 def run():
-    if os.getenv("BOTKERNEL_BENCHMARK_OWNED") != "true" or engine.url.database != "bk_benchmark":
-        raise RuntimeError("A dedicated benchmark-owned database is required")
+    require_owned_database(engine.url.database, allow_legacy=True)
     run_id = str(uuid.uuid4())
     name = "recovery-" + run_id
     with engine.begin() as connection:
@@ -46,7 +47,7 @@ def run():
                 [sys.executable, "-m", "botkernel.worker"],
                 env={**environment, "CRASH_AFTER_EFFECT": "true"}, stdout=crash_log, stderr=crash_log,
             )
-            with httpx.Client(base_url="http://api:8000", timeout=10, headers=operator_headers()) as client:
+            with httpx.Client(base_url=benchmark_api_url(engine.url.database), timeout=10, headers=operator_headers()) as client:
                 response = client.post("/actions", json={
                     "agent": name, "workflow": "benchmark-recovery",
                     "idempotency_key": run_id, "resource": name,
@@ -106,6 +107,7 @@ def run():
         print(json.dumps(result, indent=2))
         if after["receipts"] != 1 or after["effects"] != 1 or after["version"] != 1 or deliveries < 2:
             raise RuntimeError(f"Recovery evidence incomplete; inspect {folder}")
+        return result
     finally:
         for process in (crash, recovery):
             if process and process.poll() is None:

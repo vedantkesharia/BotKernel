@@ -1,0 +1,74 @@
+# Explicit opt-in: new databases/topics on an EXISTING isolated test network.
+# No host ports, new broker/database service, cloud access, or existing data reset.
+x-runtime: &runtime
+  image: ${BOTKERNEL_BENCHMARK_IMAGE:-bk-final-regression-tests:latest}
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  volumes:
+    - ../botkernel:/app/botkernel:ro
+    - ../migrations:/app/migrations:ro
+    - ${BENCHMARK_RESULTS_ROOT:?set a new results directory}:/results
+  environment: &env
+    DATABASE_URL: postgresql+psycopg://botkernel:local@postgres/${BENCHMARK_DATABASE:?new owned database required}
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    KAFKA_TOPIC: ${BENCHMARK_TOPIC:?new owned topic required}
+    KAFKA_CONSUMER_GROUP: ${BENCHMARK_GROUP:?new owned group required}
+    REDIS_URL: redis://redis:6379
+    BOTKERNEL_BENCHMARK_OWNED: "true"
+    BOTKERNEL_BENCHMARK_API_URL: http://${BENCHMARK_API_ALIAS:?new private alias required}:8000
+    BOTKERNEL_OPERATOR_TOKEN: ${BOTKERNEL_OPERATOR_TOKEN:?set private benchmark credential}
+    CLOUD_MODE: mock
+    AWS_DEPLOY_ALLOWED: "false"
+    BEDROCK_ENABLED: "false"
+    BEDROCK_SPEND_AUTHORIZED: "false"
+    AI_ACTION_EXECUTION_ENABLED: "false"
+    AGENT_PROVIDER: deterministic_mock
+    INVESTIGATOR_PROVIDER: deterministic_mock
+    OTEL_EXPORTER_OTLP_ENDPOINT: ""
+    BOTKERNEL_TRACE_SAMPLE_RATIO: "1.0"
+    PYTHONDONTWRITEBYTECODE: "1"
+    OUTBOX_POLL_INTERVAL_SECONDS: ${OUTBOX_POLL_INTERVAL_SECONDS:-0.2}
+  networks: [infrastructure]
+services:
+  api:
+    <<: *runtime
+    environment:
+      <<: *env
+      BENCHMARK_SPAN_FILE: /results/telemetry/api.jsonl
+      OTEL_SERVICE_NAME: benchmark-api
+    networks:
+      infrastructure:
+        aliases: ["${BENCHMARK_API_ALIAS}"]
+    command: [python, -m, botkernel.benchmark_runtime, --role, api]
+    mem_limit: 256m
+  publisher:
+    <<: *runtime
+    environment:
+      <<: *env
+      BENCHMARK_SPAN_FILE: /results/telemetry/publisher.jsonl
+      OTEL_SERVICE_NAME: benchmark-publisher
+      ROLE: publisher
+    command: [python, -m, botkernel.benchmark_runtime, --role, publisher]
+    mem_limit: 128m
+  worker:
+    <<: *runtime
+    environment:
+      <<: *env
+      BENCHMARK_SPAN_FILE: /results/telemetry/worker.jsonl
+      OTEL_SERVICE_NAME: benchmark-worker
+      ROLE: worker
+    command: [python, -m, botkernel.benchmark_runtime, --role, worker]
+    mem_limit: 192m
+  benchmark:
+    <<: *runtime
+    command: [python, -m, botkernel.real_benchmark]
+    mem_limit: 192m
+  faults:
+    <<: *runtime
+    command: [python, -m, botkernel.benchmark_failures]
+    mem_limit: 384m
+networks:
+  infrastructure:
+    external: true
+    name: ${BOTKERNEL_BENCHMARK_NETWORK:?existing test network required}

@@ -1,0 +1,1388 @@
+{
+  "kind": "virtual_simulation",
+  "seeds": [
+    1103,
+    1201,
+    1301,
+    1409,
+    1511,
+    1601,
+    1709,
+    1801,
+    1901,
+    2003
+  ],
+  "duration_ticks": 120,
+  "scenario_policy_runs": 240,
+  "groups": [
+    {
+      "scenario": "cascade",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 40,
+        "episode_false_negatives": 0,
+        "tp": 500,
+        "fp": 0,
+        "fn": 100,
+        "tn": 600,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 40
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 10
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 6
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 1
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 69
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 154.257
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.275
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 50
+        }
+      },
+      "episode_precision": 0.2,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "cascade",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 10,
+        "episode_false_negatives": 0,
+        "tp": 470,
+        "fp": 330,
+        "fn": 130,
+        "tn": 270,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 10
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 9
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 2
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 4
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 93
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 1
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 264.125
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.21666666666666667
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 80
+        }
+      },
+      "episode_precision": 0.5,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.55
+    },
+    {
+      "scenario": "cascade",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 10,
+        "tp": 0,
+        "fp": 0,
+        "fn": 600,
+        "tn": 600,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 59
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 361.08000000000004
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.5083333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": 0.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "healthy_scaling",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 3.6
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 75.436
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.08833333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "healthy_scaling",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 3.6
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 75.436
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.08833333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "healthy_scaling",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 3.6
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 75.436
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.08833333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "oscillation",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 60,
+        "episode_false_negatives": 0,
+        "tp": 620,
+        "fp": 80,
+        "fn": 130,
+        "tn": 370,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 60
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 47
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 7
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 1
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 154.573
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.6583333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 70
+        }
+      },
+      "episode_precision": 0.14285714285714285,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.17777777777777778
+    },
+    {
+      "scenario": "oscillation",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 20,
+        "episode_false_negatives": 0,
+        "tp": 620,
+        "fp": 360,
+        "fn": 130,
+        "tn": 90,
+        "alert_onsets_outside_truth": 10,
+        "unmatched_alerts_overlapping_truth": 10
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 15
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 2
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 4
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 1
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 264.283
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.30833333333333335
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 98
+        }
+      },
+      "episode_precision": 0.3333333333333333,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.8
+    },
+    {
+      "scenario": "oscillation",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 10,
+        "tp": 0,
+        "fp": 0,
+        "fn": 750,
+        "tn": 450,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 118
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 361.23199999999997
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": 0.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "overlapping_remediation",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 100,
+        "fp": 0,
+        "fn": 650,
+        "tn": 450,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 105
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 1
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 1
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 121.44
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.9583333333333334
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 10
+        }
+      },
+      "episode_precision": 1.0,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "overlapping_remediation",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 10,
+        "episode_false_negatives": 0,
+        "tp": 400,
+        "fp": 410,
+        "fn": 350,
+        "tn": 40,
+        "alert_onsets_outside_truth": 10,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 39
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 2
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 3
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 1
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 120.134
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.4083333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 81
+        }
+      },
+      "episode_precision": 0.5,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.9111111111111111
+    },
+    {
+      "scenario": "overlapping_remediation",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 10,
+        "tp": 0,
+        "fp": 0,
+        "fn": 750,
+        "tn": 450,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 118
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 265.033
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": 0.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "recurrence",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 20,
+        "episode_false_positives": 30,
+        "episode_false_negatives": 0,
+        "tp": 360,
+        "fp": 140,
+        "fn": 90,
+        "tn": 610,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 30
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 8
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 5
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 1.5
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 30
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 154.439
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.24166666666666667
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 50
+        }
+      },
+      "episode_precision": 0.4,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.18666666666666668
+    },
+    {
+      "scenario": "recurrence",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 20,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 330,
+        "fp": 470,
+        "fn": 120,
+        "tn": 280,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 9
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 2
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 6
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 46
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 1
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 264.361
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.21666666666666667
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 80
+        }
+      },
+      "episode_precision": 1.0,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.6266666666666667
+    },
+    {
+      "scenario": "recurrence",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 20,
+        "tp": 0,
+        "fp": 0,
+        "fn": 450,
+        "tn": 750,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 45
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 32.5
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 360.888
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.39166666666666666
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": 0.0,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "simultaneous_resources",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 10,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 990,
+        "fn": 0,
+        "tn": 210,
+        "alert_onsets_outside_truth": 10,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 0
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 10
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 201.094
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.03333333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 99
+        }
+      },
+      "episode_precision": 0.0,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.825
+    },
+    {
+      "scenario": "simultaneous_resources",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 0
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 201.094
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.03333333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "simultaneous_resources",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 0
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 201.094
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.03333333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "temporary_spike",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 10,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 100,
+        "fn": 0,
+        "tn": 1100,
+        "alert_onsets_outside_truth": 10,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 2
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 1
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 73.499
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.058333333333333334
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 10
+        }
+      },
+      "episode_precision": 0.0,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.08333333333333333
+    },
+    {
+      "scenario": "temporary_spike",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 2
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 73.505
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.058333333333333334
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "temporary_spike",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1200,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 2
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 0,
+          "mean": null
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 73.505
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.058333333333333334
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": null,
+      "tick_false_positive_rate": 0.0
+    },
+    {
+      "scenario": "worker_failure",
+      "mode": "basic",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 50,
+        "episode_false_negatives": 0,
+        "tp": 590,
+        "fp": 10,
+        "fn": 160,
+        "tn": 440,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 50
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 50
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 6
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 1
+        },
+        "time_to_recovery_ticks": {
+          "n": 10,
+          "mean": 36
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 1.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 154.38
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.6833333333333333
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 60
+        }
+      },
+      "episode_precision": 0.16666666666666666,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.022222222222222223
+    },
+    {
+      "scenario": "worker_failure",
+      "mode": "collective",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 10,
+        "episode_false_positives": 20,
+        "episode_false_negatives": 0,
+        "tp": 620,
+        "fp": 360,
+        "fn": 130,
+        "tn": 90,
+        "alert_onsets_outside_truth": 10,
+        "unmatched_alerts_overlapping_truth": 10
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 15
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 2
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 10,
+          "mean": 4
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 1
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 264.087
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.30833333333333335
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 98
+        }
+      },
+      "episode_precision": 0.3333333333333333,
+      "episode_recall": 1.0,
+      "tick_false_positive_rate": 0.8
+    },
+    {
+      "scenario": "worker_failure",
+      "mode": "independent",
+      "seeds": 10,
+      "totals": {
+        "episode_true_positives": 0,
+        "episode_false_positives": 0,
+        "episode_false_negatives": 10,
+        "tp": 0,
+        "fp": 0,
+        "fn": 750,
+        "tn": 450,
+        "alert_onsets_outside_truth": 0,
+        "unmatched_alerts_overlapping_truth": 0
+      },
+      "means": {
+        "oscillating_resource_changes": {
+          "n": 10,
+          "mean": 108
+        },
+        "intervention_count": {
+          "n": 10,
+          "mean": 0
+        },
+        "mean_episode_detection_delay_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "time_to_recovery_ticks": {
+          "n": 0,
+          "mean": null
+        },
+        "sustained_stabilization_success": {
+          "n": 10,
+          "mean": 0.0
+        },
+        "incident_recurrences": {
+          "n": 10,
+          "mean": 0
+        },
+        "application_latency_p95_ms": {
+          "n": 10,
+          "mean": 361.348
+        },
+        "logical_actions_per_virtual_second": {
+          "n": 10,
+          "mean": 0.9166666666666666
+        },
+        "containment_active_ticks": {
+          "n": 10,
+          "mean": 0
+        }
+      },
+      "episode_precision": null,
+      "episode_recall": 0.0,
+      "tick_false_positive_rate": 0.0
+    }
+  ],
+  "note": "Identical predeclared inputs per seed across3policies; episode precision penalizes fragmentation, not just false onsets."
+}

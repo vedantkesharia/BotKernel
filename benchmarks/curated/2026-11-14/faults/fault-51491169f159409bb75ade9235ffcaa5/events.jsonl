@@ -1,0 +1,2 @@
+{"timestamp":"2026-11-14T21:00:47.042038+00:00","event":"kafka_event_published","action.id":"720c3d34-3dbd-46d1-a33b-4950dfba9739","trace_id":"0ba2026236645a01354ad2a2cd86e0a0","service":"botkernel-worker","botkernel.outcome":"broker_acknowledged"}
+{"timestamp":"2026-11-14T21:00:51.128976+00:00","event":"kafka_event_handled","action.id":"720c3d34-3dbd-46d1-a33b-4950dfba9739","trace_id":"0ba2026236645a01354ad2a2cd86e0a0","service":"botkernel-worker","botkernel.outcome":"processed"}

@@ -1,0 +1,28 @@
+{
+  "case": "publisher_crash",
+  "action_id": "427bc050-386f-4c50-b479-f82f4819a5f9",
+  "resource": "fault-eb2ca77193c149919e8d08d34b532f76",
+  "crash_exit_code": 18,
+  "before_recovery": {
+    "state": "RESERVED",
+    "published": false,
+    "version": 0,
+    "ledger_capacity": 1,
+    "simulator_capacity": 1,
+    "receipts": 0,
+    "effects": 0
+  },
+  "after_recovery": {
+    "state": "SUCCEEDED",
+    "published": true,
+    "version": 1,
+    "ledger_capacity": 2,
+    "simulator_capacity": 2,
+    "receipts": 1,
+    "effects": 1
+  },
+  "handled_log_entries": 2,
+  "recovery_seconds": 4.687,
+  "timing": "monotonic from restart launch, excludes intentional 1s publisher pause",
+  "unresolved": 0
+}
