@@ -31,3 +31,7 @@
 .finding-item code,.effect-timeline-copy code { font-size: 9px!important; }
 .finding-hypothesis { border-style: dashed; }
 @media (max-width: 600px) { .analysis-actions { justify-content: flex-start; } .effect-timeline-copy { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .investigation-report-panel .section-heading { flex-direction: column; align-items: stretch; }
+  .investigation-report-panel .analysis-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+}

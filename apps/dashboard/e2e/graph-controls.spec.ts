@@ -16,13 +16,13 @@ for (const [label, width, height] of [["desktop", 1440, 900], ["mobile", 390, 84
     const list = page.getByRole("listbox");
     await expect(list).toBeVisible();
     await expect(list).toHaveCSS("background-color", "rgb(36, 39, 41)");
-    await expect(page.getByRole("option", { name: "Last hour" })).toHaveCSS("color", "rgb(197, 221, 202)");
-    await expect(page.getByRole("option", { name: "Last hour" })).toBeFocused();
+    await expect(page.getByRole("option", { name: "Last 7 days" })).toHaveCSS("color", "rgb(197, 221, 202)");
+    await expect(page.getByRole("option", { name: "Last 7 days" })).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath(`graph-menu-${label}.png`) });
     await page.keyboard.press("ArrowUp");
-    await expect(page.getByRole("option", { name: "Last 15 minutes" })).toBeFocused();
+    await expect(page.getByRole("option", { name: "Last 24 hours" })).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(trigger).toContainText("Last 15 minutes");
+    await expect(trigger).toContainText("Last 24 hours");
     await trigger.click();
     await page.keyboard.press("Escape");
     await expect(list).toBeHidden();

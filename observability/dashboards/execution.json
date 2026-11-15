@@ -1,6 +1,6 @@
 {
   "uid": "botkernel-execution",
-  "title": "BotKernel - Distributed Execution",
+  "title": "BotKernel - Distributed Execution Pipeline",
   "schemaVersion": 40,
   "version": 2,
   "refresh": "10s",
@@ -170,7 +170,7 @@
         {
           "refId": "A",
           "expr": "1000 * histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"delivery\"}[5m])))",
-          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+          "legendFormat": "Worker delivery p95"
         }
       ],
       "fieldConfig": {

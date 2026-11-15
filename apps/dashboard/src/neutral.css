@@ -300,3 +300,8 @@ pre { color: #d4dfd4; }
 .operator-form textarea:focus-visible,.operator-form button:focus-visible,.incident-row:focus-visible{outline:2px solid #d4d4d8;outline-offset:3px}
 .operator-panel .alert-error{margin:0;padding:.75rem;overflow-wrap:anywhere}
 @media(max-width:950px){.investigation-workspace{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep the selected agent's summary visible at tablet widths. */
+.identity-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.identity-stats>div{min-width:0}
+@media(max-width:950px){.fleet-workspace{grid-template-columns:minmax(0,1fr)}.identity-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

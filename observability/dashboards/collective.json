@@ -50,7 +50,7 @@
         {
           "refId": "A",
           "expr": "1000 * (histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"controller\"}[1m]))))",
-          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
+          "legendFormat": "Controller p95 milliseconds"
         }
       ],
       "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped.",
