@@ -1,11 +1,11 @@
 {
   "uid": "botkernel-collective",
-  "title": "BotKernel - Collective Reliability (local simulation)",
+  "title": "BotKernel - Collective Stability",
   "schemaVersion": 40,
-  "version": 1,
-  "refresh": "5s",
+  "version": 2,
+  "refresh": "10s",
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "panels": [
@@ -26,13 +26,15 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(botkernel_operations_total{operation=\"controller\"}[1m])"
+          "expr": "rate(botkernel_operations_total{operation=\"controller\"}[1m])",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 2,
-      "title": "Controller p95 seconds",
+      "title": "Controller p95 milliseconds",
       "type": "timeseries",
       "datasource": {
         "uid": "prometheus",
@@ -47,9 +49,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"controller\"}[1m])))"
+          "expr": "1000 * (histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"controller\"}[1m]))))",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
     },
     {
       "id": 3,
@@ -68,9 +77,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_incidents"
+          "expr": "botkernel_incidents",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 4,
@@ -89,9 +100,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_interventions"
+          "expr": "botkernel_interventions",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 5,
@@ -110,9 +123,67 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_recurrences"
+          "expr": "botkernel_recurrences",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
+    },
+    {
+      "id": 6,
+      "title": "Durable incident transitions",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "botkernel_incident_transitions_total",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "description": "PostgreSQL-persisted detected, hold_applied, recurrence, verification_started, verified and escalated events. Totals survive process restart; they are not newly occurring events per second."
+    },
+    {
+      "id": 7,
+      "title": "Background scrape availability",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"background\"}",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "description": "0 is expected for deliberately stopped publisher, worker, recovery and controller containers. It does not invalidate retained database evidence."
     }
   ]
 }

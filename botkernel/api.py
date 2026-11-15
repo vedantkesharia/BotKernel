@@ -229,9 +229,9 @@ def ready():
     return {"status":"ready","redis":"advisory"}
 
 @app.get("/graph")
-def effect_graph(window: int = 60, resource: str | None = None):
-    if not 1 <= window <= 3600:
-        raise HTTPException(422,"window must be 1..3600 seconds")
+def effect_graph(window: int = 604800, resource: str | None = None):
+    if not 0 <= window <= 604800:
+        raise HTTPException(422,"window must be 0 (all history) or 1..604800 seconds; at most 1000 recent effects are returned")
     from botkernel.stability import graph
     return graph(window,resource)
 

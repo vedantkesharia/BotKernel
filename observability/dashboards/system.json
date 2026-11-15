@@ -1,11 +1,11 @@
 {
   "uid": "botkernel-system",
-  "title": "BotKernel - System Overview (local simulation)",
+  "title": "BotKernel - System Overview",
   "schemaVersion": 40,
-  "version": 1,
-  "refresh": "5s",
+  "version": 2,
+  "refresh": "10s",
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "panels": [
@@ -26,9 +26,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=\"gateway\"}"
+          "expr": "up{job=\"gateway\"}",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 2,
@@ -47,13 +49,15 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(botkernel_http_requests_total[1m]))"
+          "expr": "sum(rate(botkernel_http_requests_total[1m]))",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 3,
-      "title": "HTTP p95 seconds",
+      "title": "HTTP p95 milliseconds",
       "type": "timeseries",
       "datasource": {
         "uid": "prometheus",
@@ -68,9 +72,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(botkernel_http_duration_seconds_bucket[1m])))"
+          "expr": "1000 * (histogram_quantile(0.95, sum by (le) (rate(botkernel_http_duration_seconds_bucket[1m]))))",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
     },
     {
       "id": 4,
@@ -89,9 +100,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_actions"
+          "expr": "botkernel_actions",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 5,
@@ -110,9 +123,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_outbox_backlog"
+          "expr": "botkernel_outbox_backlog",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 6,
@@ -131,9 +146,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=\"background\"}"
+          "expr": "up{job=\"background\"}",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 7,
@@ -152,9 +169,123 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_incidents"
+          "expr": "botkernel_incidents",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
+    },
+    {
+      "id": 8,
+      "title": "HTTP error fraction (5xx)",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(botkernel_http_requests_total{category=\"5xx\"}[5m])) / clamp_min(sum(rate(botkernel_http_requests_total[5m])), 0.000000001)",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "description": "Actual HTTP error fraction; startup/dependency-readiness 503 responses are included."
+    },
+    {
+      "id": 9,
+      "title": "API process resident memory",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_resident_memory_bytes{job=\"gateway\"}",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "description": "API Python process RSS, not EC2 host memory or container memory."
+    },
+    {
+      "id": 10,
+      "title": "API process CPU",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(process_cpu_seconds_total{job=\"gateway\"}[5m])",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "description": "API process CPU seconds per wall second, in CPU cores; not EC2 host utilization."
+    },
+    {
+      "id": 11,
+      "title": "Database metric collection",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "botkernel_database_scrape_success",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "description": "1 means the API exporter collected durable PostgreSQL gauges. An absent series is not healthy zero."
     }
   ]
 }

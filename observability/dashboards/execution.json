@@ -1,11 +1,11 @@
 {
   "uid": "botkernel-execution",
-  "title": "BotKernel - Distributed Execution Pipeline (local simulation)",
+  "title": "BotKernel - Distributed Execution",
   "schemaVersion": 40,
-  "version": 1,
-  "refresh": "5s",
+  "version": 2,
+  "refresh": "10s",
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "panels": [
@@ -26,9 +26,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (operation,outcome) (rate(botkernel_operations_total[1m]))"
+          "expr": "sum by (operation,outcome) (rate(botkernel_operations_total[1m]))",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 2,
@@ -47,9 +49,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_committed_effects"
+          "expr": "botkernel_committed_effects",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 3,
@@ -68,9 +72,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_execution_attempts"
+          "expr": "botkernel_execution_attempts",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 4,
@@ -89,9 +95,11 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_dead_letters"
+          "expr": "botkernel_dead_letters",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
     },
     {
       "id": 5,
@@ -110,9 +118,67 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "botkernel_outbox_backlog"
+          "expr": "botkernel_outbox_backlog",
+          "legendFormat": "{{instance}} {{state}} {{status}} {{operation}} {{outcome}}"
         }
-      ]
+      ],
+      "description": "Real deployment telemetry from Prometheus. Durable database gauges include retained history; process rates reset on restart and can be absent while execution services are stopped."
+    },
+    {
+      "id": 6,
+      "title": "Admission outcomes / second",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(botkernel_action_admissions_total[5m]))",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "description": "API-local admission counters; absent until an outcome occurs after startup. Idempotent HTTP replays are accepted responses, not extra logical effects."
+    },
+    {
+      "id": 7,
+      "title": "Worker delivery p95",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le) (rate(botkernel_operation_duration_seconds_bucket{operation=\"delivery\"}[5m])))",
+          "legendFormat": "{{job}} {{instance}} {{outcome}} {{transition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "description": "Worker delivery handling duration, including simulator execution/finalization. No data is expected while the worker is stopped; this is not pure Kafka network latency."
     }
   ]
 }

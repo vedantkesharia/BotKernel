@@ -46,7 +46,7 @@ export function GraphView() {
   const linkedAction=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawAction) ? rawAction.toLowerCase() : "";
   const rawResource=params.get("resource") ?? "";
   const linkedResource=rawResource.length<=100 && /^[a-zA-Z0-9_-]+$/.test(rawResource) ? rawResource : "";
-  const [windowSeconds, setWindowSeconds] = useState(3600);
+  const [windowSeconds, setWindowSeconds] = useState(604800);
   const [filter, setFilter] = useState("");
   const [chosen, setChosen] = useState<{ type: "node" | "edge"; id: string } | null>(linkedAction ? {type:"node",id:`action:${linkedAction}`} : null);
   const [incidentId, setIncidentId] = useState("");
@@ -106,20 +106,20 @@ export function GraphView() {
     <div className="graph-toolbar">
       <div className="toolbar-title"><span className="overline">EVIDENCE EXPLORER</span><strong>{graph.data?.nodes.length ?? "?"} nodes <span>/</span> {graph.data?.edges.length ?? "?"} relationships</strong></div>
       <label className="search-field"><Search size={15}/><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Agent, resource, action ID" aria-label="Filter graph nodes"/></label>
-      <GraphSelect label="Graph time window" value={String(windowSeconds)} onChange={value => setWindowSeconds(Number(value))} icon={<SlidersHorizontal size={15}/>} options={[{value:"300",label:"Last 5 minutes"},{value:"900",label:"Last 15 minutes"},{value:"3600",label:"Last hour"}]}/>
+      <GraphSelect label="Graph time window" value={String(windowSeconds)} onChange={value => setWindowSeconds(Number(value))} icon={<SlidersHorizontal size={15}/>} options={[{value:"3600",label:"Last hour"},{value:"86400",label:"Last 24 hours"},{value:"604800",label:"Last 7 days"},{value:"0",label:"All history"}]}/>
       <GraphSelect label="Highlight incident" value={incidentId || "all"} onChange={value => setIncidentId(value === "all" ? "" : value)} icon={<Focus size={15}/>} options={[{value:"all",label:"All evidence"},...(incidents.data ?? []).map(incident => ({value:String(incident.id),label:`Incident #${incident.id} / ${incident.resource}`}))]}/>
     </div>
-    {linkedAction && !graph.isPending && !graph.isError && !graph.data?.evidence.some(effect=>effect.action_id===linkedAction) && <div role="status" className="graph-notice">The referenced action is not in this graph window. Choose a wider window (up to one hour); older or truncated evidence may be unavailable.</div>}
+    {linkedAction && !graph.isPending && !graph.isError && !graph.data?.evidence.some(effect=>effect.action_id===linkedAction) && <div role="status" className="graph-notice">The referenced action is not in this graph window. Choose a wider window or All history; results are capped to the most recent 1,000 effects.</div>}
     {graph.isError && <div className="alert-error" role="alert">Graph evidence could not load: {graph.error.message}</div>}
-    {graph.data?.truncated && <div className="graph-notice" role="status">Graph limited to 1,000 committed effects; narrow the time window to inspect more precisely.</div>}
+    {graph.data?.truncated && <div className="graph-notice" role="status">Showing the most recent 1,000 committed effects. Older results are omitted; narrow the time window or resource to inspect a smaller dataset.</div>}
     <div className="graph-layout">
       <div className="graph-stage">
-        <div className="stage-caption"><span className="stage-kicker"><span/> COMMITTED EFFECT GRAPH</span><span>{windowSeconds / 60} MIN WINDOW</span></div>
+        <div className="stage-caption"><span className="stage-kicker"><span/> COMMITTED EFFECT GRAPH</span><span>{windowSeconds===0?"ALL HISTORY":windowSeconds===604800?"LAST 7 DAYS":windowSeconds===86400?"LAST 24 HOURS":"LAST HOUR"}</span></div>
         <div className={`graph ${visible.nodes.length < 8 ? "graph-sparse" : ""}`} aria-label="Effect graph canvas">
           <ReactFlow key={`${mobile}-${windowSeconds}-${visible.nodes.map(node => node.id).join("|")}`} fitView fitViewOptions={{ padding: .28, minZoom: mobile ? .75 : .65, maxZoom: 1.15 }} minZoom={.16} maxZoom={1.6} nodes={visible.nodes} edges={visible.edges} nodeTypes={nodeTypes} onNodeClick={(_, node) => setChosen({ type: "node", id: node.id })} onEdgeClick={(_, edge) => setChosen({ type: "edge", id: edge.id })} onPaneClick={() => setChosen(null)} colorMode="dark">
             <Background color="#41483d" gap={28} size={1}/><Controls showInteractive={false}/>
           </ReactFlow>
-          {!graph.isPending && !graph.isError && !visible.nodes.length && <div className="graph-empty"><Empty title="No evidence in view" detail={filter ? "No committed effects match this filter. Clear it to see the graph." : "Choose a wider window or run the local bounded demo to create committed effects."}/></div>}
+          {!graph.isPending && !graph.isError && !visible.nodes.length && <div className="graph-empty"><Empty title="No evidence in view" detail={filter ? "No committed effects match this filter. Clear it to see the graph." : "No committed effects were returned for this resource and time range. Choose a wider range or All history."}/></div>}
         </div>
         <div className="graph-legend"><span><i className="legend-observed"/> OBSERVED</span><span><i className="legend-inferred"/> INFERRED REVERSAL</span><span><i className="legend-incident"/> INCIDENT EVIDENCE</span></div>
       </div>

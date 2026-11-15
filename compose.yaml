@@ -189,6 +189,7 @@ services:
     profiles: [observability]
     ports: ["127.0.0.1:${BOTKERNEL_GRAFANA_PORT:-13000}:3000"]
     environment:
+      BOTKERNEL_GRAFANA_FOLDER: "BotKernel / Local"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_PLUGINS_PREINSTALL_DISABLED: "true"

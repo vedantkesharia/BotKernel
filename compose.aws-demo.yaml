@@ -354,6 +354,7 @@ services:
     image: grafana/grafana:11.6.0
     profiles: [observability]
     environment:
+      BOTKERNEL_GRAFANA_FOLDER: "BotKernel / AWS Demo"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_AUTH_DISABLE_LOGIN_FORM: "true"

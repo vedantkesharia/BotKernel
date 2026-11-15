@@ -57,7 +57,9 @@ def score(events):
 
 def graph(window=60, resource=None):
     with engine.connect() as c:
-        events=[dict(e) for e in c.execute(text("SELECT * FROM effects WHERE observed_at>now()-(:w*interval '1 second') AND (CAST(:r AS text) IS NULL OR resource=CAST(:r AS text)) ORDER BY resource,version LIMIT 1000"),{'w':window,'r':resource}).mappings()]
+        rows=[dict(e) for e in c.execute(text("SELECT * FROM effects WHERE (:w=0 OR observed_at>now()-(:w*interval '1 second')) AND (CAST(:r AS text) IS NULL OR resource=CAST(:r AS text)) ORDER BY observed_at DESC,resource DESC,version DESC LIMIT 1001"),{'w':window,'r':resource}).mappings()]
+    truncated = len(rows) > 1000
+    events = sorted(rows[:1000], key=lambda event: (event['resource'], event['version']))
     nodes={};edges=[];previous={}
     def node(key,kind,label):
         nodes[key]={'id':key,'kind':kind,'label':label}
@@ -69,7 +71,8 @@ def graph(window=60, resource=None):
         if old and is_contiguous_reversal(old, e):
             edges.append({'id':a+':reverse','source':'action:'+str(old['action_id']),'target':a,'kind':'REVERSED_DIRECTION','inferred':True})
         previous[r]=e
-    return {'nodes':list(nodes.values()),'edges':edges,'evidence':events,'truncated':len(events)==1000}
+    return {'nodes':list(nodes.values()),'edges':edges,'evidence':events,'truncated':truncated,
+            'limit':1000,'returned_effects':len(events),'window_seconds':window}
 
 
 def _evidence(result, reason):
