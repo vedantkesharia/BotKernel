@@ -1,3 +1,5 @@
+> Historical audit of the previous hand-authored SVG. The owner supplied a new architecture PNG afterward; the current SVG is a faithful pixel-boundary vector conversion of that image, not the earlier audited reconstruction. The earlier geometry counts and original PNG hash below do not describe the replacement asset.
+
 # Architecture asset audit
 
 Original, code-native [SVG](assets/botkernel-system-architecture.svg), reviewed against the existing [PNG](assets/botkernel-system-architecture.png) and implementation on 2026-11-14. The PNG is preserved as supplied; the SVG is a separate corrected asset.
