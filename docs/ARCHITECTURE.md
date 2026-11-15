@@ -1,6 +1,6 @@
 # Architecture
 
-[Full system diagram](assets/botkernel-system-architecture.svg) ? [Asset audit](ARCHITECTURE_ASSET_AUDIT.md) ? [Validation](VALIDATION.md)
+[Full system diagram](assets/botkernel-system-architecture.png) | [Asset audit](ARCHITECTURE_ASSET_AUDIT.md) | [Validation](VALIDATION.md)
 
 ## Boundaries and deployment
 
