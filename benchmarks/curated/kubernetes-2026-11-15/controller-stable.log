@@ -1,0 +1,1 @@
+{"timestamp":"2026-11-15T01:57:52.091212+00:00","severity":"INFO","service":"botkernel-worker","component":"root","event":"incident_transition_committed","trace_id":"841fce3dff734f142e33a0022def52de","span_id":"607427cabbd313b7","botkernel.outcome":"escalated","incident.id":1}

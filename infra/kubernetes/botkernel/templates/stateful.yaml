@@ -82,17 +82,18 @@ spec:
             - {name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: "1"}
             - {name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "true"}
             - {name: KAFKA_HEAP_OPTS, value: "-Xms256m -Xmx512m"}
+          startupProbe:
+            tcpSocket: {port: 9092}
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             exec:
-              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-            timeoutSeconds: 8
-            initialDelaySeconds: 20
-            periodSeconds: 10
+              command: [sh, -c, "KAFKA_HEAP_OPTS='-Xms16m -Xmx64m' /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+            timeoutSeconds: 20
+            periodSeconds: 30
           livenessProbe:
-            exec:
-              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-            timeoutSeconds: 8
-            initialDelaySeconds: 90
+            tcpSocket: {port: 9092}
+            timeoutSeconds: 3
             periodSeconds: 20
           volumeMounts:
             - name: data

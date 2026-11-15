@@ -1,0 +1,73 @@
+{
+  "phase": "verify",
+  "utc": "2026-11-15T01:52:44.334061+00:00",
+  "result": {
+    "completion_observation_seconds": 6.344764887006022,
+    "rejections": [
+      {
+        "status": 409,
+        "response": {
+          "detail": "Admission conflict: stale resource version"
+        },
+        "latency_ms": 9.110485960263759
+      },
+      {
+        "status": 409,
+        "response": {
+          "detail": "Admission conflict: high-risk operations require human review; unsupported locally"
+        },
+        "latency_ms": 10.037141968496144
+      }
+    ],
+    "state": {
+      "actions": [
+        {
+          "id": "8a7af496-f367-4a6c-8b30-f42109be1514",
+          "state": "SUCCEEDED",
+          "resource": "k8s-contention-2",
+          "idempotency_key": "k8s-contention-2",
+          "published": 1,
+          "receipts": 1,
+          "effects": 1
+        }
+      ],
+      "resources": [
+        {
+          "id": "k8s-contention-0",
+          "capacity": 1,
+          "version": 0
+        },
+        {
+          "id": "k8s-contention-1",
+          "capacity": 1,
+          "version": 0
+        },
+        {
+          "id": "k8s-contention-2",
+          "capacity": 3,
+          "version": 1
+        },
+        {
+          "id": "k8s-contention-3",
+          "capacity": 1,
+          "version": 0
+        },
+        {
+          "id": "service-a",
+          "capacity": 4,
+          "version": 0
+        },
+        {
+          "id": "service-b",
+          "capacity": 4,
+          "version": 0
+        }
+      ],
+      "allocation": 14,
+      "pending": 0,
+      "quota": 14,
+      "migration": "0009"
+    }
+  },
+  "worker_resume_to_verified_seconds": 7.655999999959022
+}

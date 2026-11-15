@@ -1,10 +1,10 @@
 # Architecture
 
-[Full system diagram](assets/botkernel-system-architecture.png) | [Asset audit](ARCHITECTURE_ASSET_AUDIT.md) | [Validation](VALIDATION.md)
+[Full system diagram](assets/botkernel-system-architecture.svg) | [Asset audit](ARCHITECTURE_ASSET_AUDIT.md) | [Validation](VALIDATION.md)
 
 ## Boundaries and deployment
 
-BotKernel is a local-first AgentOps simulator. The verified AWS deployment is a single EC2 host running Docker Compose, private ECR images, retained encrypted EBS, an IAM instance role, SSM access and CloudWatch logging. It is not HA, Kubernetes or EKS. Its November14acceptance was bounded and the instance stopped afterward. Local Compose and the separate Helm chart are alternative runtimes; Kubernetes static checks have passed but actual cluster acceptance remains pending.
+BotKernel is a local-first AgentOps simulator. The verified AWS deployment is a single EC2 host running Docker Compose, private ECR images, retained encrypted EBS, an IAM instance role, SSM access and CloudWatch logging. It is not HA, Kubernetes or EKS. Its November14acceptance was bounded and the instance stopped afterward. Local Compose and the separate Helm chart are alternative runtimes; Kubernetes runtime acceptance passed in a separate local kind cluster: seven committed effects, contention/idempotency, persistence and rollout checks. EKS was not deployed.
 
 Nginx serves React/Vite assets and proxies `/api` to FastAPI over the private container network. AWS browser access uses an encrypted SSM tunnel to EC2 loopback HTTP, not an implemented Nginx TLS terminator. Operational routes require an operator bearer credential; a separate restricted agent credential and metrics credential have narrower purposes. Health/readiness are public checks. The browser retains its operator token in memory only. Shared static credentials are not per-user/per-agent identity, expiry or production RBAC.
 
@@ -52,4 +52,4 @@ Trace context crosses admission, outbox and Kafka boundaries. OpenTelemetry span
 
 ## Known limits
 
-Single-host storage/broker/database, a globally serialized quota path, one worker in measured workloads, local-only checkpoint ownership, shared credentials, incomplete disaster-recovery restore proof and unverified Kubernetes runtime remain explicit limits. Bounded historical AWS acceptance does not establish current cloud availability or general production readiness.
+Single-host storage/broker/database, a globally serialized quota path, one worker in measured workloads, local-only checkpoint ownership, shared credentials, incomplete disaster-recovery restore proof and untested multi-node Kubernetes behavior remain explicit limits. Bounded historical AWS acceptance does not establish current cloud availability or general production readiness.

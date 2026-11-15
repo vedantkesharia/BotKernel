@@ -1,0 +1,6 @@
+{
+  "scripts/kubernetes-runtime-check.py": "f1d42cc04074cce8f87c72391ba866f2479aab5e3692a85fee063d571dc931e0",
+  "infra/kubernetes/botkernel/templates/storage.yaml": "98c4621aed40d9791b8e251a4bea5549e03f3f3490e02f413a28f929939f7ad0",
+  "infra/kubernetes/botkernel/templates/stateful.yaml": "729e17da0b9e7e6fd8818444ede7e6aa05fc93dfffd7b872c229e7dd7c8caf0d",
+  "docs/assets/botkernel-system-architecture.svg": "7287ec271ce1f0e1bea620820a8e9061d62426d187f086f814e58265e1992d62"
+}

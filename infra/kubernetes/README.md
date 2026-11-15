@@ -1,14 +1,18 @@
 # Local Kubernetes simulator
 
-Recorded November 14, 2026 status: Docker Desktop Kubernetes is disabled/stopped, with about **1.16 GiB free** in the local Docker VM. Runtime acceptance remains pending: no release, pods or PVCs were created. A compatible private Helm **3.21.0** executable was checksum-verified; strict lint and default/agent/observability renders passed for Kubernetes 1.36.1. These are historical static checks, not a live cluster or server-side admission result. See [validation](../../docs/VALIDATION.md) and [demo guide](../../docs/DEMO_GUIDE.md) for the separate, completed AWS Compose acceptance.
+Core runtime acceptance passed in a dedicated local kind v0.33.0 / Kubernetes v1.36.1 cluster on November 15, 2026 UTC. Docker Desktop built-in Kubernetes remains disabled. This is a single-node local deployment; EKS and optional agent/observability modes were not runtime-tested. [Evidence and commands](../../docs/KUBERNETES_ACCEPTANCE.md).
 
-This is the existing Helm deployment for a **private local simulator**, not a production or cloud Kubernetes deployment. It provides PostgreSQL, single-node Kafka, Redis, a migration Job, FastAPI, publisher, worker, recovery, controller and dashboard. Optional Cost and Performance agents have separate single-writer SQLite PVCs. Optional Prometheus, Grafana, OpenTelemetry Collector and Jaeger use the project's current dashboards and trace path. The deployment procedures below have not received Kubernetes runtime acceptance.
+This is the existing Helm deployment for a **private local simulator**, not a production or cloud Kubernetes deployment. It provides PostgreSQL, single-node Kafka, Redis, a migration Job, FastAPI, publisher, worker, recovery, controller and dashboard. Optional Cost and Performance agents have separate single-writer SQLite PVCs. Optional Prometheus, Grafana, OpenTelemetry Collector and Jaeger use the project's current dashboards and trace path. The core deployment passed in kind; the optional modes remain statically checked.
 
 All services are ClusterIP; the stateful service names are headless ClusterIP Services for stable pod identity. Kafka advertises `kafka:9092`, reachable by in-cluster clients. The API becomes ready only after Alembic revision `0009` and Kafka metadata access succeed. Background and agent pods wait for the API readiness endpoint. The chart creates a no-permission ServiceAccount and disables service-account token mounting. There is no Ingress, NodePort, LoadBalancer or NetworkPolicy; service privacy relies on a dedicated namespace and local cluster. NetworkPolicies are intentionally omitted because enforcement depends on the selected CNI.
 
+## Verified runtime
+
+A dedicated local kind v0.33.0 / Kubernetes v1.36.1 cluster passed core runtime acceptance on November 15 UTC after selective BotKernel workload cleanup. Helm revision 5 is deployed; four data PVCs are Bound. Seven actions produced seven effects, with concurrent quota/idempotency and controller-hold checks, duplicate transport, PostgreSQL persistence and worker/Helm rollouts. Two runtime defects were fixed: unused optional-agent claims blocked Helm wait, and JVM-heavy Kafka liveness probes restarted a healthy broker. Failed observations are retained. See [acceptance evidence](../../docs/KUBERNETES_ACCEPTANCE.md). The earlier status above is historical.
+
 ## Prerequisites and offline checks
 
-Use an existing local Docker Desktop Kubernetes or uniquely named `kind` cluster. Never create an EKS cluster or install into an unfamiliar/shared context. Reserve at least **6 GiB free memory and 4 CPU cores for core services**, or **8 GiB and 6 cores when agents and observability are enabled**, plus **8 GiB of persistent storage**. These are conservative setup recommendations based on chart requests/limits, not measured working-set benchmarks. Check current Docker and cluster workloads before proceeding.
+Use an existing local Docker Desktop Kubernetes or uniquely named `kind` cluster. Use only an explicitly approved cluster and never install into an unfamiliar/shared context. Reserve at least **6 GiB free memory and 4 CPU cores for core services**, or **8 GiB and 6 cores when agents and observability are enabled**, plus **8 GiB of persistent storage**. These are conservative setup recommendations based on chart requests/limits, not measured working-set benchmarks. Check current Docker and cluster workloads before proceeding.
 
 From the repository root in PowerShell, select the compatible executable without changing global PATH:
 
@@ -158,9 +162,9 @@ PostgreSQL, Kafka and Redis have persistent StatefulSet claims; each LangGraph r
 
 To stop workloads while retaining data, use `helm uninstall botkernel --namespace $Namespace --kube-context $Context` only after reviewing ownership. Do not delete the namespace, PVCs or volumes without explicit data-retention approval. Helm uninstall is not a data cleanup or disaster-recovery procedure.
 
-No cluster runtime, authenticated scrape, dashboard, trace or persistent-state recovery has been verified here. Static `helm lint`/rendering is not runtime acceptance.
+Core kind runtime and authenticated dashboard access passed. Optional Kubernetes scraping/tracing and full restore remain unverified. Static rendering alone does not prove those modes.
 
-## Enablement and remaining acceptance
+## Historical enablement diagnosis and remaining optional acceptance
 
 The recorded Docker VM had 7.58 GiB RAM with only about 1.16 GiB available. Arrange the recommended headroom before enabling Docker Desktop Kubernetes through its Kubernetes/Create cluster UI. Preserve existing workloads and volumes; do not reset cluster/data, restart Docker/WSL or stop unrelated projects as an implicit setup step. The disabled API is not an application Helm failure.
 

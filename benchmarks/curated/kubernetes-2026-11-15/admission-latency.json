@@ -1,0 +1,8 @@
+{
+  "n": 32,
+  "definition": "Monotonic HTTP POST wall time after the concurrent barrier, excluding client construction. Mixed success/rejection/idempotency requests, not completion latency.",
+  "p50_ms": 135.24324347963557,
+  "p95_ms": 258.03490527614485,
+  "p99_ms": 289.7628544340842,
+  "caveat": "Descriptive quantiles of one small mixed sample; unstable tail estimates, not SLO/capacity statistics."
+}

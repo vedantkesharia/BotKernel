@@ -1,0 +1,25 @@
+{
+  "routes": [
+    {
+      "route": "/app",
+      "title": "BotKernel | Operations"
+    },
+    {
+      "route": "/app/agents",
+      "title": "BotKernel | Operations"
+    },
+    {
+      "route": "/app/graph",
+      "title": "BotKernel | Operations"
+    },
+    {
+      "route": "/app/incidents",
+      "title": "BotKernel | Operations"
+    },
+    {
+      "route": "/app/experiments",
+      "title": "BotKernel | Operations"
+    }
+  ],
+  "errors": []
+}

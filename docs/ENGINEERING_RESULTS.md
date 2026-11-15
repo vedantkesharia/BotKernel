@@ -2,6 +2,20 @@
 
 These are measured outcomes, not production capacity claims. Real distributed-system measurements, virtual controller experiments and historical AWS acceptance are deliberately separate.
 
+## Executive evidence index
+
+| Metric | Measured value / baseline | Environment / sample | Reproduce and inspect | Caveat |
+|---|---|---|---|---|
+| Durable execution | 990/990 effects including warmups | PostgreSQL/Kafka; 18 runs, 1/4/8 clients | [Raw evidence](../benchmarks/curated/2026-11-14/execution-summary.json), [commands](BENCHMARKS.md) | 912 measured, 78 warmup; shared-host short windows |
+| Single-client completion p95 | 259.402 -> 120.842 ms; 53.415% lower | 24 actions; three runs at each poll setting | Same matched benchmark | Publisher CPU higher; eight-client p95 13.711% worse |
+| Recovery correctness | 5/5 fault cases, zero unresolved | Separate crash/pause/duplicate matrix | [Fault evidence](../benchmarks/curated/2026-11-14/fault-summary.json) | Simulator idempotency, not arbitrary external exactly-once |
+| Concurrent quota/idempotency | 32 HTTP requests, 7 logical effects, 15 duplicate responses, 10 rejections | Local kind; up to 8 concurrent clients; one bounded dataset | [Runtime script](../scripts/kubernetes-runtime-check.py), [raw requests](../benchmarks/curated/kubernetes-2026-11-15/) | Test quota 14; no production capacity or robust tail estimate |
+| Kubernetes operations | Pending-worker completion 7.656 s; PG restart 8.484 s; worker rollout 2.734 s; Helm upgrade 15.469 s | Single local kind node; one sample/boundary | [Runtime evidence](KUBERNETES_ACCEPTANCE.md) | Initial probe failures/503 retained; no HA/zero-downtime claim |
+| Coordination evaluation | 240 virtual runs; oscillation reversals 47 -> 15 vs basic | 10 seeds x 8 scenarios x 3 policies | [Controller summary](../benchmarks/curated/2026-11-14/controller-summary.json) | Latency/throughput/false-positive regressions included |
+| Bedrock integration | Three real workflows across four new requests | Historical bounded EC2 run | [Acceptance](BEDROCK_ACCEPTANCE.md) | Advisory NO_OP agents; one retained validation failure |
+
+[Resume evidence and role-specific selections](RESUME_EVIDENCE.md). Existing benchmark percentages were recalculated from their saved medians; the original 90 hash entries remain unchanged. New Kubernetes evidence has its own manifest.
+
 ## End-to-end execution
 
 A predeclared interleaved comparison ran **18 workloads**: 24 actions/1 client, 48/4 and 80/8; three repetitions at each of 200-ms and opt-in 20-ms publisher polling. Each client had one warmup. **912/912 measured actions and 78 warmups** completed with one published outbox row, receipt and effect each; resource versions matched effect counts. All 990 returned HTTP 202, with no rejected/failed/escalated/timed-out measured actions.
@@ -96,7 +110,7 @@ Historical bounded AWS acceptance on 2026-11-14 verified 9/9 preparation/demo ac
 
 ## Runtime and release limits
 
-Current backend/source validation and infrastructure results are recorded in [Validation](VALIDATION.md). Kubernetes is still runtime-pending because the local cluster is disabled and memory headroom insufficient. Single-host EC2, single-node broker/database, local-filesystem checkpoint ownership, incomplete disaster-recovery restore validation and single-operator authentication remain explicit limits.
+Current backend/source validation and infrastructure results are recorded in [Validation](VALIDATION.md). Local kind Kubernetes runtime acceptance now passed after selective historical-workload cleanup; see [runtime evidence](KUBERNETES_ACCEPTANCE.md). Single-host EC2, single-node broker/database, local-filesystem checkpoint ownership, incomplete disaster-recovery restore validation and single-operator authentication remain explicit limits.
 
 ## Resume bullet candidates
 
@@ -105,3 +119,9 @@ Current backend/source validation and infrastructure results are recorded in [Va
 - Validated simulator idempotency through **five crash/pause/duplicate-delivery cases**, including receipt-before-finalization and broker-ACK-before-outbox-commit failures; preserved one effect/version increment per action with zero unresolved work.
 - Deployed a private EC2/Compose stack with Terraform, ECR, IAM-role Bedrock and SSM access; verified three genuine advisory model workflows and correlated API/Kafka/worker evidence across Prometheus, Grafana, Jaeger and CloudWatch.
 - Evaluated three coordination policies across **240 seeded scenario-policy runs**, reporting episode/tick detection separately and retaining unfavorable latency, throughput and false-positive tradeoffs.
+
+## Why containment can worsen measured false-positive occupancy
+
+In `botkernel/evaluation.py`, collective `alarm_active` remains true throughout HOLD, VERIFYING and ESCALATED, whereas basic alarms expire after their cooldown. The confusion matrix counts every alarm tick outside the predeclared harmful interval as a false positive. Historical effects and conservative sustained-verification/intervention state can therefore keep containment active after the labeled episode ends; an escalation can retain it even longer. That explains one architectural source of occupancy spillover, rather than proving every detection onset was incorrect. Episode precision also penalizes fragmented/repeated alert episodes and must be read separately from tick occupancy.
+
+Suppressing these alarms merely to improve scores would weaken safety and change the evaluation question. No detector thresholds, labels or policies were retuned in this completion. Current controller summary preserves detection delays, verification/recurrence/censoring and unfavorable modeled throughput/latency. Longer independent workload calibrations remain necessary before generalizing the ten-seed results.

@@ -8,9 +8,9 @@ Cost and performance agents can each make reasonable decisions and still destabi
 
 ## System architecture
 
-![BotKernel System Architecture](docs/assets/botkernel-system-architecture.png)
+![BotKernel System Architecture](docs/assets/botkernel-system-architecture.svg)
 
-[View full-size diagram](docs/assets/botkernel-system-architecture.png) | [Architecture details](docs/ARCHITECTURE.md)
+[View full-size diagram](docs/assets/botkernel-system-architecture.svg) | [Architecture details](docs/ARCHITECTURE.md)
 
 ## What makes it different
 
@@ -47,8 +47,7 @@ An interleaved three-repeat experiment compared default 200-ms publisher polling
 
 These are medians of three short, instrumented runs on a contended 12-vCPU/7.58-GiB Docker engine, not capacity limits. Faster polling raised sampled publisher CPU and worsened the eight-client tail; **the default remains unchanged**. [Raw distributions, stage timings and environment](docs/ENGINEERING_RESULTS.md).
 
-**Five fault-injection cases** recovered with one effect/version increment per action and zero unresolved actions, including worker death after receipt and publisher death after broker ACK. The complete current-source backend suite passed **255 tests with one skip**. [Reproduce and inspect](docs/VALIDATION.md).
-
+**Five fault-injection cases** recovered with one effect/version increment per action and zero unresolved actions, including worker death after receipt and publisher death after broker ACK. The recorded backend regression passed **255 tests with one skip**. [Reproduce and inspect](docs/VALIDATION.md).
 
 The controller comparison also retains unfavorable results: in some modeled scenarios, fewer reversals came with longer containment, higher latency, lower throughput and worse false-positive occupancy. Episode-level detection and tick-level alarm occupancy are reported separately. [Full methodology and tradeoffs](docs/BENCHMARKS.md)
 
@@ -59,6 +58,10 @@ On **2026-11-14**, the private EC2/Compose deployment completed an eight-action 
 Cost and Performance received genuine Nova Micro advisory NO_OP decisions. The Investigator persisted a genuine model-backed report after one retained validation failure and a tested prompt correction: **three workflows verified across four new calls**, with returned usage and request provenance. This proves integration and contract validation, not optimal recommendations. No model-controlled action executed.
 
 All five Prometheus targets were healthy; a 14-span API/publisher/worker trace and matching CloudWatch logs correlated a demonstrated action. The authenticated AWS dashboard and its five console views were exercised privately. **The instance was stopped afterward; this is historical validation, not an always-on public service.** [Evidence and qualifications](docs/VALIDATION.md)
+
+### Local Kubernetes acceptance
+
+Local Kubernetes acceptance passed in a dedicated single-node kind cluster: **7/7 logical effects**, 32 authenticated contention/replay requests, PostgreSQL persistence and worker/Helm rollouts. [Runtime evidence and limitations](docs/KUBERNETES_ACCEPTANCE.md).
 
 ## Operator console
 
@@ -89,25 +92,28 @@ Do not use volume deletion or pruning as recovery.
 
 ## Reproduce the evidence
 
-| Task | Entry point |
-|---|---|
-| PostgreSQL/Kafka tests | `docker compose -p bk-validation --profile test run --build --rm tests` after its private dependencies are ready |
-| Frontend checks | `npm --prefix apps/dashboard test` and `npm --prefix apps/dashboard run build` |
-| Real execution benchmarks | [Benchmark methodology and commands](docs/BENCHMARKS.md) |
-| Recovery/duplicate delivery | [Fault-injection evidence](docs/ENGINEERING_RESULTS.md#durability-and-recovery) |
-| Seeded controller comparisons | `python -m botkernel.evaluation` | virtual simulation, not Kafka performance |
-| Local Kubernetes | [Helm runtime procedure](infra/kubernetes/README.md) | runtime acceptance pending |
-| Private AWS demonstration | [Terraform/deployment guide](infra/terraform/README.md) | opt-in; no resources created by local startup |
+| Task | Entry point | Scope |
+|---|---|---|
+| PostgreSQL/Kafka tests | `docker compose -p bk-validation --profile test run --build --rm tests` | Prepare private dependencies first |
+| Frontend checks | `npm --prefix apps/dashboard test` and `npm --prefix apps/dashboard run build` | Unit tests and production build |
+| Real execution benchmarks | [Methodology and commands](docs/BENCHMARKS.md) | Measured HTTP/PostgreSQL/Kafka |
+| Recovery/duplicate delivery | [Fault-injection evidence](docs/ENGINEERING_RESULTS.md#durability-and-recovery) | Simulator-specific receipts |
+| Controller comparisons | `python -m botkernel.evaluation` | Virtual simulation |
+| Local Kubernetes | [Helm runtime procedure](infra/kubernetes/README.md) | Core kind runtime verified |
+| Private AWS demonstration | [Deployment guide](infra/terraform/README.md) | Explicit opt-in; separate EC2 Compose deployment |
 
 The CI workflow is included in the repository; local results are not a claim that remote GitHub Actions has run or passed.
 
 ## Technology
 
-**Execution:** Python, FastAPI, Pydantic, PostgreSQL, SQLAlchemy/Alembic, Kafka, Redis.
-**Agents:** LangGraph, SQLite checkpoints, optional Amazon Bedrock Runtime Converse.
-**Console:** React, TypeScript, Vite, Tailwind, shadcn/ui, React Flow, Recharts, Motion.
-**Operations:** Docker Compose, Terraform, EC2, ECR, encrypted EBS, IAM, SSM, CloudWatch, Prometheus, Grafana, OpenTelemetry and Jaeger.
-**Alternative local runtime:** Kubernetes and Helm; static validation is complete, live deployment is not yet verified.
+| Layer | Technologies |
+|---|---|
+| Execution | Python, FastAPI, Pydantic, PostgreSQL, SQLAlchemy/Alembic, Kafka, Redis |
+| Agents | LangGraph, SQLite checkpoints, optional Amazon Bedrock Runtime Converse |
+| Console | React, TypeScript, Vite, Tailwind, shadcn/ui, React Flow, Recharts, Motion |
+| Operations | Docker Compose, Terraform, EC2, ECR, encrypted EBS, IAM, SSM, CloudWatch |
+| Observability | Prometheus, Grafana, OpenTelemetry, Jaeger |
+| Kubernetes | Local kind and Helm runtime verified; EKS was not deployed |
 
 ## Security and limits
 

@@ -1,4 +1,9 @@
-{{- range $name, $size := dict "cost-checkpoint" .Values.storage.checkpoint "performance-checkpoint" .Values.storage.checkpoint "experiments" .Values.storage.experiments }}
+{{- $claims := dict "experiments" .Values.storage.experiments }}
+{{- if .Values.agents.enabled }}
+{{- $_ := set $claims "cost-checkpoint" .Values.storage.checkpoint }}
+{{- $_ := set $claims "performance-checkpoint" .Values.storage.checkpoint }}
+{{- end }}
+{{- range $name, $size := $claims }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

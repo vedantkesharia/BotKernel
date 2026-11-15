@@ -25,6 +25,10 @@ notes.local.md
 *.local
 *.local.*
 .aws/
+.kube/
+**/kubeconfig
+**/kubeconfig.*
+*.kubeconfig
 .secrets/
 **/credentials
 **/credentials.*
@@ -99,6 +103,8 @@ screenshots/
 *.db-wal
 *.sqlite
 *.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 *.sqlite-shm
 *.sqlite-wal
 *.sqlite-shm
@@ -169,3 +175,7 @@ docs/validation/session-results.json
 # Owner-specific execution records; existing tracked copies require manual index review.
 infra/deploy/final-*.sh
 infra/deploy/submit-final-operation.ps1
+
+# Sanitized public Kubernetes proof referenced by its SHA-256 manifest.
+!benchmarks/curated/kubernetes-2026-11-15/worker-stable.log
+!benchmarks/curated/kubernetes-2026-11-15/controller-stable.log

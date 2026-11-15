@@ -39,7 +39,7 @@ Inventory: **25 tracked Markdown files** observed on November 14, 2026, in the o
 | `docs/PHASE2_DESIGN.md` | E | Historical proposal differs from implemented controller; redirect to architecture/controller |
 | `docs/PORTFOLIO.md` | E | Original archived; sanitized redirect to results |
 | `docs/ROADMAP.md` | A | Actual status and remaining acceptance |
-| `infra/kubernetes/README.md` | A | Static Helm checks; Kubernetes runtime remains unverified |
+| `infra/kubernetes/README.md` | A | Local kind core runtime verified; optional modes and EKS untested |
 | `infra/terraform/README.md` | A | Private single-host deployment, not HA |
 
 ## Separately observed private material
@@ -51,3 +51,5 @@ Inventory: **25 tracked Markdown files** observed on November 14, 2026, in the o
 New canonical results must identify what actually ran, the source/artifacts used and unresolved limitations. Only executed workloads with recorded artifacts support benchmark claims. Historical reports are preserved rather than rewritten to match later source. Backend suite and browser/model acceptance do not, by themselves, validate later benchmark changes.
 
 Legacy paths above are inventory labels, not recommended public links. The seven legacy guides have been archived and replaced by sanitized redirects. The 23 one-off deployment scripts have also been archived; optional manual index removal has not been performed. See [publication checklist](PUBLICATION_CHECKLIST.md). Canonical additions, this index/checklist and asset audits are outside the original 25-file count. Private handoffs and operating archives are not public navigation.
+
+Current additions: [Kubernetes runtime acceptance](KUBERNETES_ACCEPTANCE.md) (public runtime evidence) and [resume evidence](RESUME_EVIDENCE.md) (public, qualified achievements).

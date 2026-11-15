@@ -1,0 +1,119 @@
+{
+  "utc": "2026-11-15T02:11:39.538877+00:00",
+  "containers": [
+    {
+      "pod": "botkernel-api-c7c68d5d4-tcd6b",
+      "name": "api",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:50:38Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-controller-758477cd47-gt7qh",
+      "name": "controller",
+      "ready": true,
+      "restart_count": 1,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:57:50Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-dashboard-559bd9d9bf-hxvt2",
+      "name": "dashboard",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:50:39Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-kafka-0",
+      "name": "kafka",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T02:00:24Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-migrate-5-gptjc",
+      "name": "migrate",
+      "ready": false,
+      "restart_count": 0,
+      "started": {
+        "terminated": {
+          "containerID": "containerd://5c1a3c541a308dfcff4cb75fa11c55d0561abb5a453ff9e3a06ab9ac984a59ff",
+          "exitCode": 0,
+          "finishedAt": "2026-11-15T02:00:26Z",
+          "reason": "Completed",
+          "startedAt": "2026-11-15T02:00:22Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-postgres-0",
+      "name": "postgres",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:55:41Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-publisher-58cf4f74d5-7shzf",
+      "name": "publisher",
+      "ready": true,
+      "restart_count": 1,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:55:40Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-recovery-6bccc84bd8-bhj8h",
+      "name": "recovery",
+      "ready": true,
+      "restart_count": 1,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:57:50Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-redis-0",
+      "name": "redis",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:48:47Z"
+        }
+      }
+    },
+    {
+      "pod": "botkernel-worker-7875ffd8ff-tb677",
+      "name": "worker",
+      "ready": true,
+      "restart_count": 0,
+      "started": {
+        "running": {
+          "startedAt": "2026-11-15T01:58:58Z"
+        }
+      }
+    }
+  ]
+}

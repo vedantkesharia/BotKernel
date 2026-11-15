@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title desc">
+<title id="title">BotKernel system architecture</title><desc id="desc">Independent reasoning, authenticated admission, durable PostgreSQL and Kafka execution, deterministic collective control and read-only investigation.</desc>
+<defs><pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".6" fill="#ddd8e8"/></pattern><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#74648c"/></marker></defs><rect width="1440" height="1000" fill="#fcfbfe"/><rect width="1440" height="1000" fill="url(#dots)"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#262032}.title{font-size:38px;font-weight:700}.heading{font-size:18px;font-weight:700}.body{font-size:15px}.section{font-size:12px;letter-spacing:2px;fill:#7950aa}.edge{fill:none;stroke:#74648c;stroke-width:1.8;marker-end:url(#arrow)}.optional{stroke-dasharray:5 5}</style>
+<text class="title" x="40" y="64">BotKernel</text><text class="body" x="270" y="60">Independent reasoning · Durable execution · Collective stability</text>
+<text class="section" x="40" y="116">REASONING AND OPERATOR EXPERIENCE</text>
+<rect x="40" y="140" width="310" height="130" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="58" y="170">Independent LangGraph agents</text>
+<text class="body" x="58" y="197">Cost and Performance workflows</text>
+<text class="body" x="58" y="220">Separate SQLite checkpoints + proposals</text>
+<text class="body" x="58" y="243">Observe → reason → validate → submit</text>
+<rect x="400" y="140" width="290" height="130" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="418" y="170">Optional Amazon Bedrock</text>
+<text class="body" x="418" y="197">Nova Micro · Converse API</text>
+<text class="body" x="418" y="220">EC2 IAM role credential chain</text>
+<text class="body" x="418" y="243">Strict output/citation validation</text>
+<rect x="740" y="140" width="290" height="130" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="758" y="170">Operator console</text>
+<text class="body" x="758" y="197">React · TypeScript · Nginx</text>
+<text class="body" x="758" y="220">Fleet · Graph · Investigations</text>
+<text class="body" x="758" y="243">Bearer authentication · private access</text>
+<rect x="1080" y="140" width="320" height="130" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="1098" y="170">Redis</text>
+<text class="body" x="1098" y="197">Advisory heartbeats + decisions</text>
+<text class="body" x="1098" y="220">Atomic inference-budget reservations</text>
+<text class="body" x="1098" y="243">Budget unavailable → deny inference</text>
+<path class="edge optional" d="M350 205H396"/>
+
+<rect x="40" y="350" width="210" height="155" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="58" y="380">FastAPI admission</text>
+<text class="body" x="58" y="407">Identity + policy + holds</text>
+<text class="body" x="58" y="430">Quota + reservations</text>
+<text class="body" x="58" y="453">Version + idempotency</text>
+<text class="body" x="58" y="476">Atomic action/outbox write</text>
+<rect x="290" y="350" width="300" height="155" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="308" y="380">PostgreSQL</text>
+<text class="body" x="308" y="407">Actions · reservations · outbox</text>
+<text class="body" x="308" y="430">Simulator state + durable receipts</text>
+<text class="body" x="308" y="453">Committed effects + versions</text>
+<text class="body" x="308" y="476">Incidents + validated reports</text>
+<rect x="630" y="350" width="200" height="155" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="648" y="380">Outbox publisher</text>
+<text class="body" x="648" y="407">Separate process</text>
+<text class="body" x="648" y="430">Lock unpublished rows</text>
+<text class="body" x="648" y="453">Kafka ACK → mark sent</text>
+<text class="body" x="648" y="476">Crash window can replay</text>
+<rect x="870" y="350" width="190" height="155" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="888" y="380">Kafka</text>
+<text class="body" x="888" y="407">Single-node KRaft</text>
+<text class="body" x="888" y="430">Action execution topic</text>
+<text class="body" x="888" y="453">At-least-once delivery</text>
+<text class="body" x="888" y="476">Offsets follow handling</text>
+<rect x="1100" y="350" width="300" height="155" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="1118" y="380">Execution worker</text>
+<text class="body" x="1118" y="407">Serialize logical action execution</text>
+<text class="body" x="1118" y="430">Commit simulator state + receipt</text>
+<text class="body" x="1118" y="453">Finalize ledger + effect + version</text>
+<text class="body" x="1118" y="476">Replay-safe simulator execution</text>
+<path class="edge" d="M250 427H286"/>
+<path class="edge" d="M590 427H626"/>
+<path class="edge" d="M830 427H866"/>
+<path class="edge" d="M1060 427H1096"/>
+<path class="edge" d="M190 270V346"/>
+<path class="edge" d="M885 270V306H145V346"/>
+<path class="edge" d="M1250 505V550H440V509"/>
+<text class="body" x="725" y="540">Receipt and finalization return to the same PostgreSQL</text>
+
+<rect x="40" y="630" width="420" height="145" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="58" y="660">Effect graph + deterministic controller</text>
+<text class="body" x="58" y="687">Committed, version-ordered effects reveal reversals</text>
+<text class="body" x="58" y="710">Selective scale-down holds at admission</text>
+<text class="body" x="58" y="733">Sustained verification · recurrence · escalation</text>
+<text class="body" x="58" y="756">Evidence indicates correlation, not causal proof</text>
+<rect x="510" y="630" width="420" height="145" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="528" y="660">Read-only Incident Investigator</text>
+<text class="body" x="528" y="687">Retrieve committed incident/effect evidence</text>
+<text class="body" x="528" y="710">Deterministic facts + optional model hypotheses</text>
+<text class="body" x="528" y="733">Validate schemas and every supporting citation</text>
+<text class="body" x="528" y="756">Supervised process; persist report to PostgreSQL</text>
+<rect x="980" y="630" width="420" height="145" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="998" y="660">Recovery and reconciliation</text>
+<text class="body" x="998" y="687">Sweep due/stalled ledger work</text>
+<text class="body" x="998" y="710">Inspect receipts before repeating an operation</text>
+<text class="body" x="998" y="733">Finalize known effects; escalate uncertain state</text>
+<text class="body" x="998" y="756">Simulator receipt contract bounds idempotency</text>
+<path class="edge" d="M365 505V582H250V626"/>
+<path class="edge" d="M515 505V582H720V626"/>
+<path class="edge" d="M1190 630V590H555V509"/>
+<path class="edge optional" d="M40 700H18V428H36"/>
+<text class="section" x="40" y="830">OBSERVABILITY AND DEPLOYMENT BOUNDARIES</text>
+<rect x="40" y="850" width="650" height="110" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="58" y="880">Telemetry</text>
+<text class="body" x="58" y="907">Prometheus → Grafana · OpenTelemetry → Collector → Jaeger</text>
+<text class="body" x="58" y="930">Structured CloudWatch logs · Action / trace correlation</text>
+<rect x="740" y="850" width="660" height="110" rx="12" fill="#fff" stroke="#cbbddf"/>
+<text class="heading" x="758" y="880">Runtime choices</text>
+<text class="body" x="758" y="907">Local Compose · Kubernetes + Helm · Private EC2 Compose</text>
+<text class="body" x="758" y="930">Terraform · ECR · Encrypted EBS · IAM · SSM loopback access</text>
+</svg>

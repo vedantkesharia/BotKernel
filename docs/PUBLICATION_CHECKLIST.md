@@ -1,6 +1,6 @@
 # Publication checklist
 
-This is an owner review checklist, not an executed cleanup. No Git index, staging, commit, push or history-rewrite operation was performed by this documentation task.
+The owner approved the exact 23 operational-script removals below. They were executed with `git rm --cached`; only those 23 deletions are staged. Every local file and archived copy remains unchanged and ignored. No additional files were staged, and no commit, push or history rewrite occurred.
 
 ## Preserve and reconcile
 
@@ -10,11 +10,11 @@ This is an owner review checklist, not an executed cleanup. No Git index, stagin
 - `docs/PROJECT_HANDOFF.md` was verified absent from `git ls-files` and ignored by `git check-ignore`; it needs no manual untracking command.
 - Retain failed/unknown model responses, failed test runs and original benchmark artifacts. Only report benchmark runs backed by recorded execution and artifacts.
 - Confirm public text excludes account, instance, operational resource and operator identifiers, credential locations, approval logs and private screenshot links.
-- Verify Kubernetes is described as disabled/runtime unaccepted, restore as unverified and single-host deployment as lacking HA. Historical stopped AWS monitoring is not live availability.
+- Describe local kind runtime as verified, Docker Desktop built-in Kubernetes as disabled, EKS as untested, restore as unverified and both deployments as lacking HA. Historical AWS monitoring is not current availability.
 
-## Exact manual index-removal candidates
+## Completed owner-approved tracking removals
 
-The following tracked deployment scripts capture one-off operations and account-specific state. Review each against the current index before acting; another owner may change HEAD. The local originals are archived; verify their hashes before any index removal. These are **manual candidate commands only**, shown individually for explicit review; none were executed here.
+The following formerly tracked scripts capture one-off operations and account-specific state. Their local files and byte-archived originals were hash-verified before and after the approved removal. No active tool or public documentation link depends on these paths. These exact commands were executed only after owner approval; they are retained below as the operation record. Do not repeat them.
 
 ```powershell
 git rm --cached -- "infra/deploy/final-bedrock-attempt1.sh"
@@ -44,22 +44,55 @@ git rm --cached -- "infra/deploy/submit-final-operation.ps1"
 
 This list includes every currently tracked `infra/deploy/final*.sh`, its ten regression chunks, and `submit-final-operation.ps1`. No separate tracked `regressionchunk*.sh` paths were present in the inspected inventory. Retain reusable source/templates such as `runtime.env.example`; do not use a blanket directory removal.
 
-The seven legacy Markdown originals also require an owner disposition. Their originals are archived and the public paths now contain short sanitized redirects; no index changes were made. Keep those redirects tracked if compatibility is desired. If the owner instead elects to remove a legacy path from the public index after verifying its private archive and canonical replacement, these are the exact optional candidates:
+The seven legacy Markdown paths are now short sanitized redirects. **Recommendation: keep them tracked** to preserve existing links; their archived originals remain private. They are not part of the proposed removal list. No public source, reusable tooling, benchmark evidence or diagram is proposed for removal.
 
-```powershell
-git rm --cached -- "docs/AWS_DEMO_READY.md"
-git rm --cached -- "docs/DEMO_RECORDING_GUIDE.md"
-git rm --cached -- "docs/IMPLEMENTATION_WALKTHROUGH.md"
-git rm --cached -- "docs/DESIGN_DECISIONS.md"
-git rm --cached -- "docs/PHASE2_DESIGN.md"
-git rm --cached -- "docs/PORTFOLIO.md"
-git rm --cached -- "docs/DEMO_WALKTHROUGH.md"
-```
-
-`git rm --cached` stages removal from the index while retaining working-tree files; it is not a private archive. **Adding an ignore rule does not untrack existing files.** Add appropriate ignore rules during owner-approved cleanup if private retained files should stay untracked. Review the resulting staged diff before any owner commit.
+`git rm --cached` stages removal from the index while retaining working-tree files; it is not a private archive. **Adding an ignore rule does not untrack existing files.** The operational-script ignore rules are already present. Explicit Kubernetes credential rules and narrow exceptions for two sanitized, manifest-referenced logs are also present. Review the resulting staged diff before any owner commit.
 
 ## History and credentials
 
 Untracking or sanitizing a file does not remove prior commits, clones or cached copies. **History has not been rewritten.** The owner should inspect current content and reachable history for exposed secrets and revoke or rotate any credential that may have been disclosed. Identifiers alone are not credentials; a clean scoped text scan is not a comprehensive security certification.
 
 No AWS calls, paid inference, application tests, deployment or action replay are needed for this document review. Record actual offline checks separately from historical runtime evidence. Publication requires final link/content checks and owner review.
+
+## Individual operational-file review
+
+All 23 working copies matched their byte-archived originals and manifest hashes. Classification below records the complete approved removal scope; all 23 removals are now staged and no other files were staged.
+
+| File under `infra/deploy/` | Reason to remove from tracking |
+|---|---|
+| `final-bedrock-attempt1.sh` | Fixed live-inference fixture/checkpoint identities; enables paid gates and restarts API |
+| `final-bedrock-diagnostics.sh` | Reads one historical report and budget date |
+| `final-disable-and-agent-proof.sh` | One-run settings/process proof and historical checkpoint paths |
+| `final-eight-action-demo.sh` | Historical target/version/quota assumptions and fixed run identity |
+| `final-independent-agents.sh` | Fixed resources, checkpoint names and output paths |
+| `final-invariants.sh` | Queries one historical run/resource/incident set |
+| `final-investigator-attempt2.sh` | Paid call with fixed incident, budget counters and output identity |
+| `final-investigator-log.sh` | One-run diagnostic log filter |
+| `final-investigator-release2.sh` | Personal registry/account and fixed release digest; changes deployment |
+| `final-model-preflight.sh` | Personal registry and historical fixtures; inspects runtime credentials |
+| `final-monitor-start.sh` | Assumes a host-specific monitoring override and runtime secret mount |
+| `final-quota-release.sh` | Historical target/version/allocation and state-changing gateway operation |
+| `final-regression-chunk-0.sh` | Encoded historical source-transfer fragment 0 |
+| `final-regression-chunk-1.sh` | Encoded historical source-transfer fragment 1 |
+| `final-regression-chunk-2.sh` | Encoded historical source-transfer fragment 2 |
+| `final-regression-chunk-3.sh` | Encoded historical source-transfer fragment 3 |
+| `final-regression-chunk-4.sh` | Encoded historical source-transfer fragment 4 |
+| `final-regression-chunk-5.sh` | Encoded historical source-transfer fragment 5 |
+| `final-regression-chunk-6.sh` | Encoded historical source-transfer fragment 6 |
+| `final-regression-chunk-7.sh` | Encoded historical source-transfer fragment 7 |
+| `final-regression-chunk-8.sh` | Encoded historical source-transfer fragment 8 |
+| `final-regression-chunk-9.sh` | Encoded historical source-transfer fragment 9 |
+| `submit-final-operation.ps1` | Fixed instance/profile SSM command submitter |
+
+The ten fragments were decoded in memory: their source bundle contains 61 members under application, tests, migrations, observability and project configuration. No sensitive path names or access-key/private-key signatures were found. Source already exists as ordinary repository files; these transport fragments are not a reproduction interface.
+
+Keep `infra/deploy/runtime.env.example`, parameterized tools under `scripts/`, all application/infrastructure source and curated benchmark evidence. The reusable tools remain approval-gated; a tool's presence does not authorize deployment or paid inference.
+
+## Reviewed commit and push sequence
+
+1. Completed: the owner approved exactly the 23 script removals above. Local/archive hashes and ignore coverage were verified before and after `git rm --cached`; inspect the 23 staged deletions before proceeding.
+2. Review the explicit source/chart/document/evidence additions in `git status`; confirm the SVG, new Kubernetes evidence, both sanitized logs and resume/runtime guides are included. Avoid blanket staging of private working files.
+3. Inspect `git diff --cached --stat` and `git diff --cached`, rerun current-file secret/link/hash/whitespace checks on the exact candidate tree, then approve the commit. Suggested title: `Finalize Kubernetes acceptance and public release evidence`.
+4. Review the configured remote and destination branch, commit contents and any historical exposure. Push only after separate owner approval. No force-push or history rewriting is proposed.
+
+Current-file scanning does not certify prior history. This repository has no project license file; no open-source licensing permission is asserted or invented. Remote GitHub rendering and CI execution remain publication-time checks.

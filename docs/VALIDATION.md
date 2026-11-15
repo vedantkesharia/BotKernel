@@ -45,9 +45,17 @@ The instance was verified stopped afterward. Current cloud state was not queried
 
 ## Remaining acceptance limits
 
-- Kubernetes runtime is **not verified**. The local API refuses connections, Docker Desktop reports Kubernetes disabled/stopped and the approximately 7.58 GiB engine has only about 1.16 GiB available. No namespace, release, pods or PVCs were created. [Exact prerequisite and deployment procedure](../infra/kubernetes/README.md).
+- Local kind Kubernetes runtime is now verified separately: 7 logical effects, quota/idempotency contention, worker restart, PostgreSQL persistence and Helm upgrades. Docker Desktop's built-in Kubernetes remains disabled. EKS, optional Kubernetes agents/observability and multi-node behavior were not tested. [Runtime evidence](KUBERNETES_ACCEPTANCE.md).
 - No disaster-recovery restore drill, HA/failover validation or sustained production load test has passed.
 - Frontend browser coverage was historically verified on AWS; it was not rerun against the stopped cloud deployment in this local pass. No frontend behavior changed here.
 - Local SVG rendering/XML/geometry checks do not establish GitHub-hosted rendering; publication and remote CI remain owner actions.
 
 Static validation commands and publication review are in [the publication checklist](PUBLICATION_CHECKLIST.md). Benchmark CPU/RAM observations are sampled shared-host measurements, not full host peaks or a service capacity guarantee.
+
+## Subsequent Kubernetes acceptance
+
+Core local kind runtime passed: seven effects, 32 HTTP submissions, concurrent quota/idempotency and controller holds, two explicit duplicate events, worker recovery, PostgreSQL PVC restart and Helm upgrades. Browser authentication/proxy checks and five routes passed after retaining a transient readiness-503 run. The Kafka probe and optional-claim corrections are documented with failures in [Kubernetes acceptance](KUBERNETES_ACCEPTANCE.md).
+
+No backend application source changed in this task; the 255-pass/1-skip full regression above remains historical. New backend verification is the real Kubernetes admission/transport/persistence dataset, not a claimed full-suite rerun. Strict Helm/YAML checks and current frontend build/unit results are recorded with this acceptance. No AWS services were provisioned.
+
+Current closure checks executed: frontend TypeScript/Vite production build passed (existing 605 KB chunk warning), 6 Vitest tests passed, authenticated Chromium checks passed on the Kubernetes deployment, strict Helm lint passed and default/agents/observability YAML rendered as 18/22/32 objects. Assertions checked conditional checkpoint claims, bounded Kafka readiness heap, TCP liveness and private Services. Compose configurations, Terraform fmt/validate, Python compilation and local Markdown links passed. The initial sandbox esbuild launch failed with EPERM before a permitted rerun passed. No full backend suite was repeated for these chart-only changes; all new correctness claims come from the recorded Kubernetes runtime cases.

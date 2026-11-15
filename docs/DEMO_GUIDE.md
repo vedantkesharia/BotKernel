@@ -53,3 +53,6 @@ Show landing, Mission Control, Agent Fleet, Effect Graph, incident/report, Exper
 Keep the authorized stop deadline visible privately. Disable inference/action gates, stop only the approved application services without deleting volumes, stop the existing EC2 instance and verify `stopped`. Retained EBS/ECR/log charges continue. [AWS deployment guide](../infra/terraform/README.md).
 
 Kubernetes is a separate local deployment and may be shown as live only after actual pods, PVCs, readiness, a distributed action and restart checks pass. Static Helm render success is not a Kubernetes demonstration. [Runtime procedure](../infra/kubernetes/README.md).
+
+
+The separate local kind core runtime has now passed acceptance. Its private dashboard was verified at `http://127.0.0.1:18080/app`; see [exact current access and evidence](KUBERNETES_ACCEPTANCE.md). This is local Kubernetes, separate from EC2 Compose.

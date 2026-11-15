@@ -1,0 +1,17 @@
+[
+  {
+    "clients": 1,
+    "throughput_change_percent": 121.85711257154975,
+    "completion_p95_change_percent": -53.41516256620997
+  },
+  {
+    "clients": 4,
+    "throughput_change_percent": 70.7424468229237,
+    "completion_p95_change_percent": -41.88454156054037
+  },
+  {
+    "clients": 8,
+    "throughput_change_percent": -3.033875658256713,
+    "completion_p95_change_percent": 13.711310491165897
+  }
+]

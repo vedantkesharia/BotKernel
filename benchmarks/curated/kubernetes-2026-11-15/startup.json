@@ -1,0 +1,7 @@
+{
+  "source": "Earlier pod status snapshot, including image import delays and dependency restarts. Recorded Ready transitions are not a continuous first-readiness monitor.",
+  "api_creation_to_recorded_ready_seconds": 194,
+  "dashboard_creation_to_recorded_ready_seconds": 188,
+  "controller_creation_to_recorded_ready_seconds": 197,
+  "postgres_replacement_creation_to_ready_seconds": 6
+}
